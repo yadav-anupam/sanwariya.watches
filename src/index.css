@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cinzel", serif;
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-black: #050505;
+  --color-white: #F5F5F0;
+  
+  --color-neutral-950: #0a0a0a;
+  --color-neutral-900: #121212;
+  --color-neutral-850: #171717;
+  --color-neutral-800: #1a1a1a;
+  --color-neutral-700: #2a2a2a;
+  --color-neutral-600: #4a4a4a;
+  --color-neutral-500: #707070;
+  --color-neutral-400: #b0b0b0;
+  --color-neutral-300: #d0d0d0;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-100: #F5F5F0;
+  
+  --color-gold-50: #fefdf0;
+  --color-gold-100: #fdfae1;
+  --color-gold-200: #fbf3b3;
+  --color-gold-300: #f1df91;
+  --color-gold-400: #e2cc62;
+  --color-gold-500: #D4AF37;
+  --color-gold-600: #B8962E;
+  --color-gold-700: #93741b;
+  --color-gold-800: #755b16;
+  --color-gold-950: #251d04;
+}
+
+/* Custom styles for luxury background radial effects matching Sophisticated Dark theme */
+.bg-luxury-radial {
+  background: radial-gradient(circle at center, #0e0e0d 0%, #050505 100%);
+}
+
+.text-gold-gradient {
+  background: linear-gradient(135deg, #f1df91 0%, #D4AF37 50%, #93741b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.border-gold-gradient {
+  border-image: linear-gradient(to right, #93741b, #D4AF37, #755b16) 1;
+}
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+::-webkit-scrollbar-thumb {
+  background: #251d04;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
+}
+

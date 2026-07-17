@@ -1,0 +1,6 @@
+{
+  "name": "Sanwariya Watches",
+  "description": "Premium luxury watch landing page and dynamic catalog boutique for Sanwariya Watches with direct WhatsApp checkout support, feedback form, and live social integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

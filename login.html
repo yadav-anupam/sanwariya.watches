@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#050505]">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client Sign In | Sanwariya Watches</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Integrations -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gold: {
+              50: '#fefdf0',
+              100: '#fdfae1',
+              200: '#fbf3b3',
+              300: '#f7e776',
+              400: '#f2d33c',
+              500: '#D4AF37', // luxury metallic gold
+              600: '#b88d21',
+              700: '#946a16',
+            },
+            neutral: {
+              850: '#171717',
+              950: '#0a0a0a',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Supabase JS CDN (v2) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    /* Premium visual touches */
+    .glow-border {
+      position: relative;
+    }
+    .glow-border::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 150px; height: 1px;
+      background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col justify-between text-neutral-200 antialiased font-sans">
+
+  <!-- Premium Portal Loading Indicator Overlay -->
+  <div id="auth-loading-overlay" class="fixed inset-0 z-[10000] bg-[#050505] flex flex-col items-center justify-center gap-4 transition-all duration-300">
+    <div class="relative w-16 h-16">
+      <div class="absolute inset-0 rounded-full border-4 border-neutral-900"></div>
+      <div class="absolute inset-0 rounded-full border-4 border-t-gold-500 animate-spin"></div>
+    </div>
+    <p class="text-xs font-mono tracking-[0.25em] text-gold-500 uppercase animate-pulse">Authenticating Portal Session...</p>
+  </div>
+
+  <!-- Header Brand Banner -->
+  <header class="w-full max-w-7xl mx-auto px-6 py-5 flex justify-between items-center border-b border-neutral-900">
+    <a href="/index.html" class="flex items-center gap-2 group">
+      <span class="text-xs font-mono tracking-[0.3em] text-gold-500 uppercase group-hover:text-gold-400 transition-colors">
+        ◀ SANWARIYA WATCHES
+      </span>
+    </a>
+    <span class="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">Client Portal</span>
+  </header>
+
+  <!-- Main Card Container -->
+  <main class="flex-1 flex items-center justify-center p-4">
+    <div class="glow-border w-full max-w-md bg-neutral-950 border border-neutral-850 rounded-2xl p-6 sm:p-8 shadow-2xl relative">
+      
+      <!-- Brand Heading -->
+      <div class="text-center mb-6">
+        <span class="text-[9px] font-mono tracking-[0.25em] text-gold-500 uppercase">Premium Horology</span>
+        <h2 class="text-2xl font-bold text-white tracking-wide mt-1">Client Sign In</h2>
+        <p class="text-xs text-neutral-400 mt-2">Access your exclusive wishlist, personalized orders & priority support.</p>
+      </div>
+
+      <!-- Error / Success Alert Banners -->
+      <div id="alert-error" class="hidden mb-4 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-xs text-red-400 flex items-start gap-2">
+        <div class="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
+        <span id="alert-error-text">Failed to authenticate. Please verify email and code.</span>
+      </div>
+
+      <div id="alert-success" class="hidden mb-4 p-3 rounded-lg border border-green-500/20 bg-green-500/10 text-xs text-green-400 flex items-start gap-2">
+        <svg class="text-green-400 w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span id="alert-success-text">Success! Welcome to your secure session.</span>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" class="space-y-4">
+        <!-- Email Input -->
+        <div>
+          <label for="email" class="block text-[10px] font-mono tracking-wider text-neutral-400 uppercase mb-1.5">Corporate / Client Email</label>
+          <div class="relative">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">✉</span>
+            <input 
+              type="email" 
+              id="email" 
+              required 
+              placeholder="name@example.com"
+              class="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-gold-500 transition-colors"
+            />
+          </div>
+        </div>
+
+        <!-- Password Input -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label for="password" class="block text-[10px] font-mono tracking-wider text-neutral-400 uppercase">Secure Password</label>
+            <a href="/forgot-password.html" class="text-[10px] font-sans font-medium text-gold-500 hover:text-gold-400 transition-colors">
+              Forgot Password?
+            </a>
+          </div>
+          <div class="relative">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">🔒</span>
+            <input 
+              type="password" 
+              id="password" 
+              required 
+              placeholder="••••••••"
+              class="w-full bg-neutral-900 border border-neutral-800 rounded-xl py-2.5 pl-10 pr-10 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-gold-500 transition-colors"
+            />
+            <button type="button" id="toggle-password" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs font-mono">
+              SHOW
+            </button>
+          </div>
+        </div>
+
+        <!-- Remember Me Checkbox -->
+        <div class="flex items-start gap-3 pt-1">
+          <input 
+            type="checkbox" 
+            id="remember-me" 
+            class="mt-1 h-4 w-4 rounded border-neutral-800 bg-neutral-900 text-gold-500 accent-gold-500 cursor-pointer"
+          />
+          <div class="flex flex-col">
+            <label for="remember-me" class="text-xs font-sans font-medium text-neutral-300 cursor-pointer select-none">
+              Remember Me
+            </label>
+            <span class="text-[10px] text-neutral-500 font-sans mt-0.5">Keep me signed in</span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button 
+          type="submit" 
+          id="btn-submit"
+          class="w-full py-3 px-6 rounded-xl bg-gold-500 hover:bg-gold-400 text-black font-sans font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+        >
+          <!-- Loader (Hidden initially) -->
+          <svg id="submit-loader" class="hidden animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span id="submit-text">Sign In To Account</span>
+        </button>
+      </form>
+
+      <!-- Client Sign Up Toggle Info -->
+      <div class="text-center text-xs text-neutral-400 mt-6 pt-4 border-t border-neutral-900">
+        New to Sanwariya Watches? 
+        <a href="/index.html" class="font-semibold text-gold-500 hover:text-gold-400 transition-colors">
+          Browse Catalog & Create Account
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Luxury Footnote footer -->
+  <footer class="w-full py-6 text-center border-t border-neutral-900 text-[10px] font-mono text-neutral-500">
+    <div>🛡️ SSL Secure Connection • Sanwariya Cloud Crypt • All Rights Reserved</div>
+  </footer>
+
+  <!-- Script Modules -->
+  <script type="module" src="login.js"></script>
+</body>
+</html>
