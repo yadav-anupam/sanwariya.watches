@@ -38,6 +38,7 @@ interface CartDrawerProps {
     totalPrice: number;
     createdAt: string;
   }) => void;
+  startAtCheckout?: boolean;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -50,7 +51,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onBrowseMenu,
   user,
   onOpenAuth,
-  onOrderSuccess
+  onOrderSuccess,
+  startAtCheckout = false
 }) => {
   const [isCheckoutStep, setIsCheckoutStep] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,10 +78,82 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     if (!isOpen) {
       setIsCheckoutStep(false);
       setErrors({});
+    } else if (startAtCheckout) {
+      setIsCheckoutStep(true);
     }
-  }, [isOpen]);
+  }, [isOpen, startAtCheckout]);
 
-  const totalPrice = cart.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+  const subtotal = cart.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+  
+  const originalSubtotal = cart.reduce((total, item) => {
+    const itemOriginalPrice = item.product.originalPrice && item.product.originalPrice > item.product.price 
+      ? item.product.originalPrice 
+      : Math.round(item.product.price * 1.25);
+    return total + (itemOriginalPrice * item.quantity);
+  }, 0);
+
+  const totalDiscount = originalSubtotal - subtotal;
+
+  const gstTotal = cart.reduce((total, item) => {
+    const itemGst = (item.product.price * (item.product.gstPercentage || 0)) / 100;
+    return total + (itemGst * item.quantity);
+  }, 0);
+
+  const shippingTotal = cart.reduce((total, item) => {
+    return total + ((item.product.shippingCharges || 0) * item.quantity);
+  }, 0);
+
+  const grandTotal = subtotal + gstTotal + shippingTotal;
+
+  const renderInvoiceBreakdown = () => (
+    <div className="flex flex-col gap-2 bg-neutral-950 p-4 rounded-xl border border-neutral-900/80 shadow-inner">
+      <h4 className="text-[10px] font-mono uppercase tracking-widest text-gold-400 font-extrabold pb-1.5 border-b border-neutral-900">
+        Detailed Invoice Breakdown
+      </h4>
+      
+      <div className="flex justify-between text-neutral-400 text-xs">
+        <span>Original Price (Total MRP)</span>
+        <span className="font-mono line-through text-neutral-500">₹{originalSubtotal.toLocaleString('en-IN')}</span>
+      </div>
+
+      <div className="flex justify-between text-neutral-300 text-xs font-semibold">
+        <span>Discounted Price (Subtotal)</span>
+        <span className="font-mono text-emerald-400">₹{subtotal.toLocaleString('en-IN')}</span>
+      </div>
+
+      {totalDiscount > 0 && (
+        <div className="flex justify-between text-neutral-400 text-xs">
+          <span>Instant Discount Savings</span>
+          <span className="font-mono text-emerald-500 font-medium">-₹{totalDiscount.toLocaleString('en-IN')}</span>
+        </div>
+      )}
+
+      <div className="flex justify-between text-neutral-400 text-xs">
+        <span>GST Tax (As Applicable)</span>
+        <span className="font-mono text-neutral-300">
+          {gstTotal > 0 ? `₹${gstTotal.toLocaleString('en-IN')}` : 'Included'}
+        </span>
+      </div>
+
+      <div className="flex justify-between text-neutral-400 text-xs">
+        <span>Shipping Charges</span>
+        <span className="font-mono">
+          {shippingTotal > 0 ? (
+            <span className="text-amber-500 font-bold">₹{shippingTotal.toLocaleString('en-IN')}</span>
+          ) : (
+            <span className="text-emerald-500 font-bold">Free Shipping Charges</span>
+          )}
+        </span>
+      </div>
+
+      <div className="h-[1px] bg-neutral-900 my-1" />
+      
+      <div className="flex justify-between text-white font-bold text-base">
+        <span>Grand Total</span>
+        <span className="font-mono text-gold-400">₹{grandTotal.toLocaleString('en-IN')}</span>
+      </div>
+    </div>
+  );
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -111,6 +185,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       brand: item.product.brand,
       price: item.product.price,
       quantity: item.quantity,
+      gst_percentage: item.product.gstPercentage || 0,
+      shipping_charge: item.product.shippingCharges || 0
     }));
 
     try {
@@ -120,7 +196,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         address,
         notes: notes || 'None',
         items: dbItems,
-        totalPrice: totalPrice,
+        totalPrice: grandTotal,
       };
 
       // Save to Supabase Cloud Database
@@ -133,13 +209,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         address,
         notes,
         items: [...cart],
-        totalPrice: totalPrice,
+        totalPrice: grandTotal,
         createdAt: new Date().toISOString()
       });
 
       // Prepare WhatsApp Redirection
       const orderItemsText = cart
-        .map(item => `• *${item.product.name}* (Brand: ${item.product.brand}, Qty: ${item.quantity}) - ₹${(item.product.price * item.quantity).toLocaleString('en-IN')}`)
+        .map(item => {
+          let line = `• *${item.product.name}* (Brand: ${item.product.brand}, Qty: ${item.quantity}) - ₹${(item.product.price * item.quantity).toLocaleString('en-IN')}`;
+          if (item.product.gstPercentage && item.product.gstPercentage > 0) {
+            line += ` (incl. ${item.product.gstPercentage}% GST)`;
+          }
+          if (item.product.shippingCharges && item.product.shippingCharges > 0) {
+            line += ` [Shipping: ₹${(item.product.shippingCharges * item.quantity).toLocaleString('en-IN')}]`;
+          }
+          return line;
+        })
         .join('\n');
 
       const messageText = `✨ *NEW ORDER - SANWARIYA WATCHES* ✨\n\n` +
@@ -149,8 +234,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         (notes.trim() ? `📝 *Notes:* _${notes}_\n` : '') +
         `\n🛍️ *Ordered Timepieces:* \n` +
         `${orderItemsText}\n\n` +
-        `💵 *Total Price:* ₹${totalPrice.toLocaleString('en-IN')}\n` +
-        `⚡ *Shipping:* Free Express Air Delivery Requested 🚀\n` +
+        `🏷️ *Original Price (Total MRP):* ₹${originalSubtotal.toLocaleString('en-IN')}\n` +
+        `🎁 *Instant Discount Savings:* -₹${totalDiscount.toLocaleString('en-IN')}\n` +
+        `💵 *Discounted Price (Subtotal):* ₹${subtotal.toLocaleString('en-IN')}\n` +
+        `📈 *GST (Tax):* ${gstTotal > 0 ? `₹${gstTotal.toLocaleString('en-IN')}` : 'Included'}\n` +
+        `🚚 *Shipping Charges:* ${shippingTotal > 0 ? `₹${shippingTotal.toLocaleString('en-IN')}` : 'Free Shipping Charges'}\n` +
+        `💰 *Grand Total:* ₹${grandTotal.toLocaleString('en-IN')}\n` +
         `\n💬 _Hello! I have registered this booking on your portal. Please verify availability and share payment instructions!_`;
 
       const encodedMessage = encodeURIComponent(messageText);
@@ -292,9 +381,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                             </button>
                           </div>
                           
-                          <div className="text-right">
-                            <span className="text-sm font-mono font-semibold text-gold-400">
+                          <div className="text-right flex flex-col items-end">
+                            {/* Original Price (cutted) */}
+                            <span className="text-[10px] font-mono text-neutral-500 line-through">
+                              ₹{((item.product.originalPrice && item.product.originalPrice > item.product.price ? item.product.originalPrice : Math.round(item.product.price * 1.25)) * item.quantity).toLocaleString('en-IN')}
+                            </span>
+                            {/* Discounted Price (under it) */}
+                            <span className="text-sm font-mono font-bold text-gold-400 mt-0.5">
                               ₹{(item.product.price * item.quantity).toLocaleString('en-IN')}
+                            </span>
+                            {/* Extra details (GST/Shipping) */}
+                            <span className="text-[9px] text-neutral-500 font-sans mt-0.5 whitespace-nowrap">
+                              {item.product.gstPercentage && item.product.gstPercentage > 0 ? `${item.product.gstPercentage}% GST` : 'GST Incl.'}
+                              {' • '}
+                              {item.product.shippingCharges && item.product.shippingCharges > 0 ? `Ship: ₹${(item.product.shippingCharges * item.quantity).toLocaleString('en-IN')}` : 'Free Shipping'}
                             </span>
                           </div>
                         </div>
@@ -403,6 +503,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </p>
                     </div>
                   </div>
+
+                  {/* Detailed billing breakdown attached inside the scrollable form step */}
+                  <div className="mt-2 pt-2">
+                    {renderInvoiceBreakdown()}
+                  </div>
                 </motion.div>
               )}
             </div>
@@ -410,21 +515,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             {/* Footer Summary & Checkout button */}
             {cart.length > 0 && (
               <div className="bg-neutral-900/90 border-t border-neutral-900 p-6 flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between text-neutral-400 text-xs">
-                    <span>Subtotal</span>
-                    <span className="font-mono">₹{totalPrice.toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="flex justify-between text-neutral-400 text-xs">
-                    <span>Shipping</span>
-                    <span className="text-gold-400 font-bold uppercase tracking-wider">Free Express</span>
-                  </div>
-                  <div className="h-[1px] bg-neutral-800 my-1" />
-                  <div className="flex justify-between text-white font-bold text-base">
-                    <span>Total Price</span>
-                    <span className="font-mono text-gold-400">₹{totalPrice.toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
+                {!isCheckoutStep && renderInvoiceBreakdown()}
 
                 {!user ? (
                   <button
@@ -453,7 +544,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     ) : (
                       <MessageSquare size="16" fill="white" />
                     )}
-                    <span>{isSubmitting ? 'Reserving Watch...' : 'Place Order & Pay via WhatsApp'}</span>
+                    <span>{isSubmitting ? 'Reserving Watch...' : `Place Order & Pay ₹${grandTotal.toLocaleString('en-IN')} via WhatsApp`}</span>
                   </button>
                 )}
                 

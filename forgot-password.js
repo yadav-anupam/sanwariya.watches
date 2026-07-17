@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         // Build redirection URI dynamically based on the current window location
-        // to prevent hardcoded domain breakages in Dev / Sandbox/ Shared / Production URLs.
+        // to prevent hardcoded domain breakages in Dev / Sandbox / Shared / Production URLs.
         const redirectToUrl = `${window.location.origin}/update-password.html`;
         console.log('Dispatching reset email with redirectTo route:', redirectToUrl);
 

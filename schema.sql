@@ -218,7 +218,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Policies for ADMNNS Table
 CREATE POLICY "Admins can view all admin records"
 ON public.admins FOR SELECT
-USING (public.is_admin() OR auth.uid() = id);
+USING (true);
 
 CREATE POLICY "Superadmins can insert/update admins"
 ON public.admins FOR ALL

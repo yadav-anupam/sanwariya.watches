@@ -31,7 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'home', label: 'Home' },
     { id: 'menu', label: 'Menu' }, // preserving literal "Menu" requested by user
     { id: 'about', label: 'About Us' },
-    { id: 'contact', label: 'Visit & Contact' }
+    { id: 'contact', label: 'Contact' }
   ] as const;
 
   const handleNavClick = (tab: 'home' | 'menu' | 'about' | 'contact' | 'order-success') => {

@@ -36,6 +36,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'menu' | 'about' | 'contact' | 'order-success'>('home');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [startCartAtCheckout, setStartCartAtCheckout] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<WatchProduct | null>(null);
   const [lastOrder, setLastOrder] = useState<{
     name: string;
@@ -57,9 +58,121 @@ export default function App() {
   const [selectedType, setSelectedType] = useState<string>('All');
   const [sortOption, setSortOption] = useState<string>('featured');
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [dbProducts, setDbProducts] = useState<WatchProduct[]>([]);
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
+  const [dbBrands, setDbBrands] = useState<any[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true);
+  const [instagramImages, setInstagramImages] = useState<string[]>([
+    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800',
+    'https://images.unsplash.com/photo-1547996160-81dfa63595aa?q=80&w=800',
+    'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?q=80&w=800',
+    'https://images.unsplash.com/photo-1622434641406-a158123450f9?q=80&w=800',
+    'https://images.unsplash.com/photo-1524592094714-0f0654e20314?q=80&w=800',
+    'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?q=80&w=800'
+  ]);
   
   // Interactive notifications (Toast alerts)
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+
+  // Combined Category and Brand Collections derived dynamically
+  const combinedCollections = useMemo(() => {
+    const items: Array<{
+      id: string;
+      name: string;
+      type: 'Category' | 'Brand';
+      image: string;
+      description: string;
+    }> = [];
+
+    // Prioritize user-created categories and brands
+    if (dbCategories.length > 0 || dbBrands.length > 0) {
+      dbCategories.forEach(cat => {
+        if (cat.image_url || cat.name) {
+          items.push({
+            id: cat.id,
+            name: cat.name,
+            type: 'Category',
+            image: cat.image_url || 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?w=400',
+            description: cat.description || 'Custom curated timepiece series'
+          });
+        }
+      });
+
+      dbBrands.forEach(brand => {
+        if (brand.logo_url || brand.name) {
+          items.push({
+            id: brand.id,
+            name: brand.name,
+            type: 'Brand',
+            image: brand.logo_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400',
+            description: brand.description || 'Renowned luxury watchmaker'
+          });
+        }
+      });
+    }
+
+    // Fallback default showcase collections
+    if (items.length === 0) {
+      return [
+        {
+          id: 'def-1',
+          name: 'Skeletal Series',
+          type: 'Category' as const,
+          image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&auto=format&fit=crop&q=80',
+          description: 'Transparent gears displaying structural masterpieces'
+        },
+        {
+          id: 'def-2',
+          name: 'Chronograph',
+          type: 'Category' as const,
+          image: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=400&auto=format&fit=crop&q=80',
+          description: 'High-precision multi-dial stopwatches'
+        },
+        {
+          id: 'def-3',
+          name: 'Rolex',
+          type: 'Brand' as const,
+          image: 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?w=400&auto=format&fit=crop&q=80',
+          description: 'Uncompromising prestige and classical luxury'
+        },
+        {
+          id: 'def-4',
+          name: 'Audemars Piguet',
+          type: 'Brand' as const,
+          image: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?w=400&auto=format&fit=crop&q=80',
+          description: 'Avant-garde royal oak geometry & complexity'
+        },
+        {
+          id: 'def-5',
+          name: 'Classic Vintage',
+          type: 'Category' as const,
+          image: 'https://images.unsplash.com/photo-1539874754764-5a96559165b0?w=400&auto=format&fit=crop&q=80',
+          description: 'Hand-wound nostalgic masterpieces from golden eras'
+        },
+        {
+          id: 'def-6',
+          name: 'Patek Philippe',
+          type: 'Brand' as const,
+          image: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=400&auto=format&fit=crop&q=80',
+          description: 'Swiss horological legacy and timeless elegance'
+        }
+      ];
+    }
+
+    return items;
+  }, [dbCategories, dbBrands]);
+
+  const handleCollectionClick = (item: { name: string; type: 'Category' | 'Brand' }) => {
+    if (item.type === 'Category') {
+      setSelectedType(item.name);
+    } else {
+      setSelectedType('All');
+      setSearchQuery(item.name);
+    }
+    setActiveTab('menu');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast(`🔍 Filtering watch catalog for: ${item.name}`);
+  };
 
   const checkAdminStatus = async (userId: string) => {
     try {
@@ -103,6 +216,114 @@ export default function App() {
     return () => {
       subscription.unsubscribe();
     };
+  }, []);
+
+  // Fetch products, categories, and brands from Supabase
+  useEffect(() => {
+    const fetchCatalogData = async () => {
+      try {
+        setIsLoadingProducts(true);
+        // Fetch published products
+        const { data: dbProds, error: pError } = await supabase
+          .from('products')
+          .select('*, product_images(image_url, sort_order)')
+          .eq('status', 'published');
+
+        if (pError) throw pError;
+
+        // Fetch categories
+        const { data: dbCats } = await supabase
+          .from('categories')
+          .select('*');
+
+        // Fetch brands
+        const { data: dbBrands } = await supabase
+          .from('brands')
+          .select('*');
+
+        const categoriesList = dbCats || [];
+        const brandsList = dbBrands || [];
+
+        // Check if there's a database-backed system row for Instagram images
+        const systemSettings = categoriesList.find((c: any) => c.name === '__INSTAGRAM_IMAGES__');
+        if (systemSettings && systemSettings.description) {
+          try {
+            const urls = JSON.parse(systemSettings.description);
+            if (Array.isArray(urls) && urls.length === 6) {
+              setInstagramImages(urls);
+            }
+          } catch (e) {
+            console.warn('Failed to parse dynamic instagram images from database:', e);
+          }
+        }
+
+        // Filter out system row so it doesn't leak into visible categories list
+        const visibleCategories = categoriesList.filter((c: any) => c.name !== '__INSTAGRAM_IMAGES__');
+
+        const mapped: WatchProduct[] = (dbProds || []).map((p: any) => {
+          // Resolve category name to use as type
+          const cat = categoriesList.find((c: any) => c.id === p.category_id);
+          const resolvedType = cat ? cat.name : 'Luxury Classic';
+
+          // Resolve brand name
+          const brandObj = brandsList.find((b: any) => b.id === p.brand_id);
+          const resolvedBrand = brandObj ? brandObj.name : 'Sanwariya Luxury';
+
+          // Resolve image
+          let imageUrl = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=120';
+          const resolvedImages = p.product_images ? p.product_images.sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)).map((img: any) => img.image_url) : [];
+          if (resolvedImages && resolvedImages.length > 0) {
+            imageUrl = resolvedImages[0];
+          } else if (p.images && p.images.length > 0) {
+            imageUrl = p.images[0];
+          } else if (p.image_url) {
+            imageUrl = p.image_url;
+          }
+
+          // Resolve tag
+          let resolvedTag: WatchProduct['tag'] = 'Authentic';
+          if (p.is_best_seller) {
+            resolvedTag = 'Best Seller';
+          } else if (p.is_trending) {
+            resolvedTag = 'New Arrival';
+          } else if (p.is_featured) {
+            resolvedTag = 'Limited Stock';
+          }
+
+          return {
+            id: p.id,
+            name: p.name,
+            brand: resolvedBrand,
+            price: Number(p.pricing_selling || 0),
+            originalPrice: Number(p.pricing_original || 0),
+            description: p.full_description || p.short_description || '',
+            image: imageUrl,
+            tag: resolvedTag,
+            type: resolvedType as WatchProduct['type'],
+            specs: {
+              case: p.variant_size || '42mm Premium Stainless Steel',
+              waterResistance: p.variant_dimensions || '50m (5 ATM)',
+              movement: p.variant_material || 'High-Precision Movement',
+              strap: p.variant_color || 'Premium Metal/Leather Strap'
+            },
+            inStock: p.stock_quantity > 0 || p.unlimited_stock,
+            gstPercentage: Number(p.pricing_tax || 0),
+            shippingCharges: Number(p.pricing_shipping || 0)
+          };
+        });
+
+        // Set the products in state
+        setDbProducts(mapped);
+        setDbCategories(visibleCategories);
+        setDbBrands(brandsList);
+      } catch (err) {
+        console.error('Error fetching dynamic products from Supabase:', err);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchCatalogData();
   }, []);
 
   const handleSignOut = async () => {
@@ -159,6 +380,26 @@ export default function App() {
     showToast(`🛒 Added ${quantity}x ${product.name} to your bag!`);
   };
 
+  const handleInstantCheckout = (product: WatchProduct, quantity: number) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      showToast('🔒 Please sign in to your secure collector account to reserve timepieces.');
+      return;
+    }
+    const existingIndex = cart.findIndex(item => item.product.id === product.id);
+    let updatedCart = [...cart];
+    
+    if (existingIndex > -1) {
+      updatedCart[existingIndex].quantity += quantity;
+    } else {
+      updatedCart.push({ product, quantity });
+    }
+    
+    saveCart(updatedCart);
+    setStartCartAtCheckout(true);
+    setIsCartOpen(true);
+  };
+
   const handleUpdateQuantity = (productId: string, quantity: number) => {
     if (quantity <= 0) {
       handleRemoveFromCart(productId);
@@ -193,9 +434,14 @@ export default function App() {
     }
   };
 
+  // Dynamic catalog list loaded exclusively from Supabase
+  const catalogList = useMemo(() => {
+    return dbProducts;
+  }, [dbProducts]);
+
   // Filter and Search Watches
   const filteredWatches = useMemo(() => {
-    return WATCHES_CATALOG.filter(watch => {
+    return catalogList.filter(watch => {
       const matchesSearch = 
         watch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         watch.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -211,11 +457,15 @@ export default function App() {
       if (sortOption === 'popular') return (a.tag === 'Best Seller' ? -1 : 1);
       return 0; // Default featured sequence
     });
-  }, [searchQuery, selectedType, sortOption]);
+  }, [catalogList, searchQuery, selectedType, sortOption]);
 
   const featuredWatches = useMemo(() => {
-    return WATCHES_CATALOG.filter(watch => watch.tag === 'Best Seller' || watch.tag === 'New Arrival').slice(0, 3);
-  }, []);
+    return catalogList.filter(watch => watch.tag === 'Best Seller' || watch.tag === 'New Arrival').slice(0, 3);
+  }, [catalogList]);
+
+  const featuredHeroWatch = useMemo(() => {
+    return catalogList[0] || null;
+  }, [catalogList]);
 
   return (
     <div className="min-h-screen bg-black text-neutral-100 font-sans selection:bg-gold-500 selection:text-black antialiased overflow-x-hidden">
@@ -225,7 +475,10 @@ export default function App() {
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
-        onOpenCart={() => setIsCartOpen(true)}
+        onOpenCart={() => {
+          setStartCartAtCheckout(false);
+          setIsCartOpen(true);
+        }}
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
@@ -332,52 +585,64 @@ export default function App() {
 
                   {/* Right Column Interactive Featured Watch 3D effect Card */}
                   <div className="lg:col-span-5 flex justify-center">
-                    <motion.div
-                      whileHover={{ y: -6, rotateY: 2, rotateX: -2 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                      onClick={() => setSelectedProduct(WATCHES_CATALOG[0])}
-                      className="group relative cursor-pointer w-full max-w-sm rounded-3xl border border-neutral-900 bg-neutral-950 p-4 shadow-2xl transition-all duration-300 hover:border-gold-500/30 overflow-hidden"
-                    >
-                      {/* Urgency tag overlay */}
-                      <div className="absolute top-6 left-6 z-10">
-                        <span className="px-3.5 py-1 rounded-full bg-gold-500 text-black font-sans text-[9px] tracking-widest font-extrabold uppercase">
-                          Featured Masterpiece
-                        </span>
-                      </div>
-
-                      {/* Watch Image container */}
-                      <div className="h-80 w-full overflow-hidden rounded-2xl bg-neutral-900 relative">
-                        <img
-                          src={WATCHES_CATALOG[0].image}
-                          alt={WATCHES_CATALOG[0].name}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      </div>
-
-                      {/* Metadata info */}
-                      <div className="mt-4 px-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-mono text-gold-500 uppercase tracking-widest font-bold">
-                            {WATCHES_CATALOG[0].brand}
+                    {featuredHeroWatch ? (
+                      <motion.div
+                        whileHover={{ y: -6, rotateY: 2, rotateX: -2 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        onClick={() => setSelectedProduct(featuredHeroWatch)}
+                        className="group relative cursor-pointer w-full max-w-sm rounded-3xl border border-neutral-900 bg-neutral-950 p-4 shadow-2xl transition-all duration-300 hover:border-gold-500/30 overflow-hidden"
+                      >
+                        {/* Urgency tag overlay */}
+                        <div className="absolute top-6 left-6 z-10">
+                          <span className="px-3.5 py-1 rounded-full bg-gold-500 text-black font-sans text-[9px] tracking-widest font-extrabold uppercase">
+                            Featured Masterpiece
                           </span>
-                          <span className="text-xs font-mono text-neutral-500">₹{WATCHES_CATALOG[0].originalPrice}</span>
                         </div>
-                        <h3 className="font-serif text-lg text-white font-bold tracking-wide group-hover:text-gold-400 transition-colors">
-                          {WATCHES_CATALOG[0].name}
-                        </h3>
-                        <div className="flex justify-between items-center mt-3 pt-3 border-t border-neutral-900">
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-lg font-mono font-bold text-gold-400">₹{WATCHES_CATALOG[0].price}</span>
-                            <span className="text-[10px] text-emerald-400 font-mono">Free Express Delivery 🚀</span>
+
+                        {/* Watch Image container */}
+                        <div className="h-80 w-full overflow-hidden rounded-2xl bg-neutral-900 relative">
+                          <img
+                            src={featuredHeroWatch.image}
+                            alt={featuredHeroWatch.name}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        </div>
+
+                        {/* Metadata info */}
+                        <div className="mt-4 px-2">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-mono text-gold-500 uppercase tracking-widest font-bold">
+                              {featuredHeroWatch.brand}
+                            </span>
+                            {featuredHeroWatch.originalPrice && (
+                              <span className="text-xs font-mono text-neutral-500">₹{featuredHeroWatch.originalPrice}</span>
+                            )}
                           </div>
-                          <span className="text-xs font-sans font-bold text-white flex items-center gap-1 group-hover:underline">
-                            Details <ChevronRight size="12" />
-                          </span>
+                          <h3 className="font-serif text-lg text-white font-bold tracking-wide group-hover:text-gold-400 transition-colors">
+                            {featuredHeroWatch.name}
+                          </h3>
+                          <div className="flex justify-between items-center mt-3 pt-3 border-t border-neutral-900">
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-lg font-mono font-bold text-gold-400">₹{featuredHeroWatch.price}</span>
+                              <span className="text-[10px] text-emerald-400 font-mono">Free Express Delivery 🚀</span>
+                            </div>
+                            <span className="text-xs font-sans font-bold text-white flex items-center gap-1 group-hover:underline">
+                              Details <ChevronRight size="12" />
+                            </span>
+                          </div>
                         </div>
+                      </motion.div>
+                    ) : (
+                      <div className="w-full max-w-sm rounded-3xl border border-dashed border-neutral-800 bg-neutral-950/40 p-8 text-center flex flex-col justify-center items-center gap-4">
+                        <span className="text-4xl">⏱️</span>
+                        <h3 className="font-serif text-lg text-white font-bold tracking-wide">Awaiting Next Watch Drop</h3>
+                        <p className="text-neutral-500 text-xs font-sans leading-relaxed">
+                          No luxury timepieces have been registered in the database catalog yet. Add high-precision watches from the Admin Portal to populate the live store collection!
+                        </p>
                       </div>
-                    </motion.div>
+                    )}
                   </div>
 
                 </div>
@@ -416,37 +681,45 @@ export default function App() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {featuredWatches.map((watch) => (
-                      <div
-                        key={watch.id}
-                        onClick={() => setSelectedProduct(watch)}
-                        className="group relative cursor-pointer bg-neutral-900/20 hover:bg-neutral-900/40 rounded-2xl border border-neutral-900 p-4 transition-all duration-300 hover:border-gold-500/20"
-                      >
-                        <div className="h-64 w-full overflow-hidden rounded-xl bg-neutral-900 relative">
-                          <img
-                            src={watch.image}
-                            alt={watch.name}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <span className="absolute top-4 left-4 px-2.5 py-1 rounded bg-black/75 text-gold-400 font-mono text-[9px] uppercase tracking-widest font-bold border border-gold-500/20">
-                            {watch.tag}
-                          </span>
-                        </div>
-                        <div className="mt-4">
-                          <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">{watch.brand}</span>
-                          <h4 className="font-serif text-base text-white font-bold tracking-wide mt-0.5 line-clamp-1">{watch.name}</h4>
-                          <div className="flex justify-between items-center mt-3 pt-3 border-t border-neutral-900/80">
-                            <span className="text-base font-mono font-bold text-gold-400">₹{watch.price}</span>
-                            <span className="text-xs font-sans text-neutral-400 hover:text-gold-400 transition-colors flex items-center gap-1">
-                              View Details <ChevronRight size="12" />
+                  {featuredWatches.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      {featuredWatches.map((watch) => (
+                        <div
+                          key={watch.id}
+                          onClick={() => setSelectedProduct(watch)}
+                          className="group relative cursor-pointer bg-neutral-900/20 hover:bg-neutral-900/40 rounded-2xl border border-neutral-900 p-4 transition-all duration-300 hover:border-gold-500/20"
+                        >
+                          <div className="h-64 w-full overflow-hidden rounded-xl bg-neutral-900 relative">
+                            <img
+                              src={watch.image}
+                              alt={watch.name}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                            <span className="absolute top-4 left-4 px-2.5 py-1 rounded bg-black/75 text-gold-400 font-mono text-[9px] uppercase tracking-widest font-bold border border-gold-500/20">
+                              {watch.tag}
                             </span>
                           </div>
+                          <div className="mt-4">
+                            <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">{watch.brand}</span>
+                            <h4 className="font-serif text-base text-white font-bold tracking-wide mt-0.5 line-clamp-1">{watch.name}</h4>
+                            <div className="flex justify-between items-center mt-3 pt-3 border-t border-neutral-900/80">
+                              <span className="text-base font-mono font-bold text-gold-400">₹{watch.price}</span>
+                              <span className="text-xs font-sans text-neutral-400 hover:text-gold-400 transition-colors flex items-center gap-1">
+                                View Details <ChevronRight size="12" />
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-12 px-6 rounded-2xl border border-neutral-900 bg-neutral-950/40 text-center max-w-xl mx-auto">
+                      <p className="text-neutral-500 text-xs sm:text-sm font-sans italic">
+                        No curated pieces are flagged as featured right now. Browse our full live catalog below or add watch collections in the Admin Portal!
+                      </p>
+                    </div>
+                  )}
 
                   <div className="text-center mt-12">
                     <button
@@ -460,26 +733,40 @@ export default function App() {
                 </div>
               </section>
 
-              {/* Instagram section requested for Home Page */}
-              <section className="py-20 px-4 sm:px-6 lg:px-8 bg-neutral-950 border-t border-b border-neutral-900/30">
-                <div className="mx-auto max-w-7xl">
+              {/* Enhanced Live Instagram Drop Feed Section */}
+              <section 
+                onClick={() => {
+                  showToast("🔗 Redirecting to Sanwariya Watches Instagram drops...");
+                  setTimeout(() => {
+                    window.open(BRAND_STATS.instagramUrl, '_blank', 'noopener,noreferrer');
+                  }, 600);
+                }}
+                className="py-20 px-4 sm:px-6 lg:px-8 bg-neutral-950 border-t border-b border-neutral-900/30 cursor-pointer group/sec relative overflow-hidden transition-all duration-300 hover:bg-neutral-900/40"
+              >
+                <div id="instagram-gallery-container" className="mx-auto max-w-7xl">
                   <div className="flex flex-col md:flex-row justify-between items-center mb-10 text-center md:text-left gap-4">
                     <div>
-                      <span className="text-xs font-mono uppercase tracking-widest text-gold-500 font-bold">@sanwariya_watches</span>
-                      <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-wide mt-1">
+                      <span className="text-xs font-mono uppercase tracking-widest text-gold-500 font-bold flex items-center justify-center md:justify-start gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        LIVE INSTAGRAM FEED
+                      </span>
+                      <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-wide mt-1 group-hover/sec:text-gold-400 transition-colors">
                         Follow Our Instagram Drop Feed
                       </h2>
+                      <p className="text-[11px] text-neutral-400 mt-1 font-sans">
+                        Click anywhere in this section to explore live watch exhibitions and DM on Instagram to purchase.
+                      </p>
                     </div>
 
-                    {/* Instagram social statistics */}
-                    <div className="flex items-center gap-6 bg-neutral-900/50 p-4 rounded-2xl border border-neutral-850">
+                    {/* Social Statistics */}
+                    <div className="flex items-center gap-6 bg-neutral-900/80 p-4 rounded-2xl border border-neutral-800 backdrop-blur-sm">
                       <div className="text-center border-r border-neutral-800 pr-5">
-                        <p className="text-lg font-mono font-bold text-white">{BRAND_STATS.followersCount}</p>
-                        <p className="text-[9px] text-neutral-500 uppercase tracking-widest">Followers</p>
+                        <p className="text-lg font-mono font-bold text-white">1,089+</p>
+                        <p className="text-[9px] text-neutral-500 uppercase tracking-widest">Collectors</p>
                       </div>
                       <div className="text-center border-r border-neutral-800 pr-5">
-                        <p className="text-lg font-mono font-bold text-white">{BRAND_STATS.postsCount}</p>
-                        <p className="text-[9px] text-neutral-500 uppercase tracking-widest">Posts</p>
+                        <p className="text-lg font-mono font-bold text-white">32</p>
+                        <p className="text-[9px] text-neutral-500 uppercase tracking-widest">Watch Drops</p>
                       </div>
                       <div className="text-center">
                         <p className="text-lg font-mono font-bold text-gold-400">100%</p>
@@ -488,46 +775,70 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Feed Grid */}
+                  {/* 6 High-Quality Enhanced Watch Only Images */}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {INSTAGRAM_MOCK_FEED.map((post) => (
-                      <a
-                        key={post.id}
-                        href={BRAND_STATS.instagramUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="group relative h-48 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-850"
+                    {[
+                      {
+                        caption: 'White Minimalist Classic',
+                        likes: '1.2k'
+                      },
+                      {
+                        caption: 'Sanwariya Obsidian Elite',
+                        likes: '894'
+                      },
+                      {
+                        caption: 'Steel Dynamic Chronograph',
+                        likes: '1.5k'
+                      },
+                      {
+                        caption: 'Royal Horizon Gold Tourbillon',
+                        likes: '2.1k'
+                      },
+                      {
+                        caption: 'Vintage Leather Heritage',
+                        likes: '1.1k'
+                      },
+                      {
+                        caption: 'Exquisite Mechanical Core',
+                        likes: '1.7k'
+                      }
+                    ].map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="group/card relative h-56 rounded-xl overflow-hidden bg-neutral-900 border border-neutral-850 transition-all duration-300 hover:border-gold-500/50 hover:shadow-lg hover:shadow-gold-500/5"
                       >
                         <img
-                          src={post.imageUrl}
-                          alt="Sanwariya Watches IG post"
+                          src={instagramImages[idx] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800'}
+                          alt={item.caption}
                           referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-110"
                         />
-                        {/* Hover Overlay */}
-                        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4 flex flex-col justify-between">
-                          <p className="text-[10px] text-neutral-300 leading-relaxed line-clamp-4 font-sans italic">
-                            "{post.caption}"
-                          </p>
-                          <div className="flex justify-between items-center text-[10px] font-mono text-gold-400 border-t border-neutral-800 pt-2">
-                            <span>❤️ {post.likes}</span>
-                            <span className="flex items-center gap-0.5">DM to buy <ArrowUpRight size="10" /></span>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-3 flex flex-col justify-end opacity-90 group-hover/card:opacity-100 transition-opacity">
+                          <span className="text-[8px] font-mono text-gold-400 uppercase tracking-widest font-bold">@sanwariya_watches</span>
+                          <p className="text-[10px] font-bold text-white font-sans truncate mt-0.5">{item.caption}</p>
+                          <div className="flex justify-between items-center text-[9px] font-mono text-neutral-400 mt-1.5 border-t border-neutral-800/60 pt-1.5">
+                            <span className="flex items-center gap-1 text-red-500">❤️ {item.likes}</span>
+                            <span className="text-gold-400 flex items-center gap-0.5">Shop drops <ArrowUpRight size="8" /></span>
                           </div>
                         </div>
-                      </a>
+                      </div>
                     ))}
                   </div>
 
-                  <div className="text-center mt-10">
-                    <a
-                      href={BRAND_STATS.instagramUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gold-500 text-black font-sans font-bold text-xs tracking-widest uppercase hover:bg-gold-400 transition-colors"
+                  <div className="text-center mt-12">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showToast("🔗 Redirecting to Sanwariya Watches Instagram...");
+                        setTimeout(() => {
+                          window.open(BRAND_STATS.instagramUrl, '_blank', 'noopener,noreferrer');
+                        }, 500);
+                      }}
+                      className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-gold-500 text-black font-sans font-bold text-xs tracking-widest uppercase hover:bg-gold-400 transition-all cursor-pointer shadow-lg shadow-gold-500/10 hover:scale-[1.02]"
                     >
                       <Instagram size="14" />
-                      <span>Join Our Instagram Collectors</span>
-                    </a>
+                      <span>Explore @sanwariya_watches</span>
+                    </button>
                   </div>
                 </div>
               </section>
@@ -724,7 +1035,7 @@ export default function App() {
                             
                             {watch.inStock ? (
                               <button
-                                onClick={() => handleAddToCart(watch, 1)}
+                                onClick={() => handleInstantCheckout(watch, 1)}
                                 className="py-2 text-[10px] uppercase tracking-widest font-extrabold rounded bg-gold-500 hover:bg-gold-400 text-black cursor-pointer"
                               >
                                 Buy Now
@@ -1112,6 +1423,19 @@ export default function App() {
             <span>FASTEST INDIAN SHIPPING 🚀</span>
           </div>
         </div>
+
+        {/* Designed & Developed at the bottom */}
+        <div className="mx-auto max-w-7xl mt-4 text-center text-[10px] text-neutral-600 font-mono">
+          Designed & Developed by{' '}
+          <a 
+            href="https://webjugaadlabs.vercel.app" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-neutral-400 hover:text-gold-400 transition-colors underline decoration-neutral-800 hover:decoration-gold-400/50"
+          >
+            WebJuagd Labs | Anupam Yadav
+          </a>
+        </div>
       </footer>
 
       {/* Persistent Floating WhatsApp Widget as requested for seamless customer support directly from any view */}
@@ -1133,10 +1457,7 @@ export default function App() {
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
-        onQuickCheckout={(prod, qty) => {
-          handleAddToCart(prod, qty);
-          setIsCartOpen(true);
-        }}
+        onQuickCheckout={handleInstantCheckout}
       />
 
       {/* Shopping Cart Drawer */}
@@ -1157,6 +1478,7 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
           showToast('👑 Timepiece Reserved! Pending Admin Approval.');
         }}
+        startAtCheckout={startCartAtCheckout}
       />
 
       {/* Dynamic Success Alert / Toast Popup */}

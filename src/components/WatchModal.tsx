@@ -121,11 +121,17 @@ export const WatchModal: React.FC<WatchModalProps> = ({
                 </h3>
 
                 {/* Price tag */}
-                <div className="flex items-baseline gap-3 mb-5">
+                <div className="flex items-baseline gap-3 mb-2">
                   <span className="text-2xl font-mono font-bold text-gold-400">₹{product.price}</span>
                   {product.originalPrice && (
                     <span className="text-sm font-mono text-neutral-500 line-through">₹{product.originalPrice}</span>
                   )}
+                </div>
+
+                {/* GST and Shipping Info */}
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mb-5 text-[11px] text-neutral-500 font-sans">
+                  <span>• GST: {product.gstPercentage && product.gstPercentage > 0 ? `${product.gstPercentage}%` : 'Included'}</span>
+                  <span>• Shipping: {product.shippingCharges && product.shippingCharges > 0 ? `₹${product.shippingCharges}` : 'Free Express Delivery'}</span>
                 </div>
 
                 {/* Description */}
@@ -200,8 +206,13 @@ export const WatchModal: React.FC<WatchModalProps> = ({
                           <Plus size="14" />
                         </button>
                       </div>
-                      <span className="text-xs font-mono text-neutral-500 ml-auto">
-                        Total: <strong className="text-gold-400">₹{product.price * quantity}</strong>
+                      <span className="text-xs font-mono text-neutral-500 ml-auto flex flex-col items-end gap-0.5">
+                        <span className="text-[10px]">
+                          Subtotal: ₹{(product.price * quantity).toLocaleString('en-IN')}
+                        </span>
+                        <span>
+                          Total: <strong className="text-gold-400">₹{((product.price * quantity) + ((product.price * quantity * (product.gstPercentage || 0)) / 100) + ((product.shippingCharges || 0) * quantity)).toLocaleString('en-IN')}</strong>
+                        </span>
                       </span>
                     </div>
 
@@ -220,10 +231,13 @@ export const WatchModal: React.FC<WatchModalProps> = ({
 
                       {/* Buy on WhatsApp */}
                       <button
-                        onClick={handleWhatsAppInstantBuy}
+                        onClick={() => {
+                          onQuickCheckout(product, quantity);
+                          onClose();
+                        }}
                         className="py-3 px-4 rounded-xl bg-gold-500 hover:bg-gold-400 text-black font-sans font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-colors"
                       >
-                        <MessageSquare size="14" fill="black" />
+                        <ShoppingCart size="14" />
                         <span>Instant Buy</span>
                       </button>
                     </div>

@@ -83,7 +83,7 @@ export const WATCHES_CATALOG: WatchProduct[] = [
     price: 3999,
     originalPrice: 6999,
     description: 'An exercise in minimalist luxury. Crisp, clean dial in flawless matte white with raised rose gold linear indices, housed in an ultra-slim 8mm case. The ultimate executive dress watch.',
-    image: 'https://images.unsplash.com/photo-1509048191080-d2984bad6ae5?q=80&w=600&auto=format&fit=crop',
+    image: 'https://images.unsplash.com/photo-1539874754764-5a96559165b0?q=80&w=600&auto=format&fit=crop',
     tag: 'Authentic',
     type: 'Luxury Classic',
     specs: {
@@ -206,14 +206,14 @@ export const CUSTOMER_REVIEWS: Review[] = [
 export const INSTAGRAM_MOCK_FEED = [
   {
     id: 'ig1',
-    imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=500&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?q=80&w=500&auto=format&fit=crop',
     likes: 245,
     comments: 18,
     caption: 'Time is luxury. Make it count with our limited-edition Stealth Obsidian Chrono. ✨ Link in bio. #SanwariyaWatches #wristwear'
   },
   {
     id: 'ig2',
-    imageUrl: 'https://images.unsplash.com/photo-1612817288484-6f916006741a?q=80&w=500&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?q=80&w=500&auto=format&fit=crop',
     likes: 412,
     comments: 32,
     caption: 'Gold never goes out of style. Elevate your presence today with Royal Emperor. ⚜️ 100% Authentic. #luxury #rolexlookalike #goldwatch'
@@ -227,14 +227,14 @@ export const INSTAGRAM_MOCK_FEED = [
   },
   {
     id: 'ig4',
-    imageUrl: 'https://images.unsplash.com/photo-1509048191080-d2984bad6ae5?q=80&w=500&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1539874754764-5a96559165b0?q=80&w=500&auto=format&fit=crop',
     likes: 310,
     comments: 25,
     caption: 'Sleek. Minimalist. Timeless. Designed for the high-achieving modern professional. 💼 #MinimalistStyle #dresstimepiece'
   },
   {
     id: 'ig5',
-    imageUrl: 'https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?q=80&w=500&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?q=80&w=500&auto=format&fit=crop',
     likes: 367,
     comments: 29,
     caption: 'Deep-ocean ready. 200m water resistance. Meet the Cosmo Oceanic. 🌊 Limited Stock. #diverwatch #proadventure'

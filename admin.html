@@ -114,16 +114,6 @@
         <span id="auth-alert-text" class="flex-1"></span>
       </div>
 
-      <!-- Auth Mode Switcher -->
-      <div id="auth-mode-switch-bar" class="grid grid-cols-2 bg-slate-950 border border-slate-850 p-1 rounded-xl mb-5 text-center">
-        <button id="auth-mode-signin" type="button" class="py-1.5 text-[11px] font-sans font-bold uppercase tracking-wider rounded-lg transition-all text-gold-500 bg-slate-900 border border-slate-800 cursor-pointer">
-          Sign In
-        </button>
-        <button id="auth-mode-signup" type="button" class="py-1.5 text-[11px] font-sans font-bold uppercase tracking-wider rounded-lg transition-all text-slate-400 hover:text-white cursor-pointer">
-          Create Account
-        </button>
-      </div>
-
       <!-- SCREEN 1: LOGIN CARD -->
       <div id="screen-login" class="space-y-4">
         <form id="admin-login-form" class="space-y-4">
@@ -150,15 +140,6 @@
               placeholder="••••••••••••"
               class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-colors"
             />
-          </div>
-
-          <!-- Developer Sandbox Auto-Provision bypass option -->
-          <div class="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex items-center justify-between text-xs text-amber-300">
-            <div>
-              <p class="font-bold">Sandbox Mode Bypass</p>
-              <p class="text-[10px] text-slate-400">Toggle if database RLS seed role is not pre-populated.</p>
-            </div>
-            <input type="checkbox" id="sandbox-bypass-toggle" class="h-4 w-4 accent-gold-500 rounded border-slate-800 cursor-pointer" />
           </div>
 
           <button 
@@ -197,30 +178,28 @@
           </button>
         </form>
 
-        <!-- Optional OTP Simulation verification -->
-        <div class="border-t border-slate-800 pt-4 mt-2">
-          <label class="block text-[10px] font-mono tracking-wider text-slate-400 uppercase mb-2 font-bold text-center">Or OTP Email Verification Code</label>
-          <div class="flex gap-2">
-            <input 
-              type="text" 
-              id="forgot-otp-code" 
-              placeholder="Enter 6-Digit Email OTP Code"
-              class="flex-1 bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-white placeholder-slate-600 focus:outline-none text-center font-mono tracking-widest"
-            />
-            <button 
-              type="button" 
-              id="btn-verify-otp" 
-              class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gold-500 rounded-xl text-xs font-bold font-sans uppercase tracking-wider transition-colors cursor-pointer"
-            >
-              Verify OTP
-            </button>
-          </div>
-          <p class="text-[9px] text-slate-500 text-center mt-1.5">OTP simulates verification for testing before redirecting.</p>
-        </div>
+
 
         <button type="button" id="btn-back-login" class="w-full text-center text-xs text-slate-400 hover:text-white font-medium mt-4 block">
           ← Cancel and Return to Gateway
         </button>
+
+        <!-- Supabase Redirect Settings Guide Note -->
+        <div class="mt-6 p-4 bg-gold-500/5 border border-gold-500/10 rounded-xl text-[11px] text-slate-400 space-y-2">
+          <p class="font-bold text-gold-500 flex items-center gap-1.5">
+            <span>ℹ️</span> Localhost Redirect Guide
+          </p>
+          <p class="leading-relaxed text-slate-300">
+            If your recovery link is opening on <code>localhost:3000</code>, this is because your remote Supabase project's auth settings default to localhost.
+          </p>
+          <p class="leading-relaxed text-slate-300">
+            To fix this, go to your <strong>Supabase Dashboard &rarr; Authentication &rarr; URL Configuration</strong> and:
+          </p>
+          <ul class="list-disc pl-4 space-y-1 text-[10px] text-slate-400">
+            <li>Set the <strong>Site URL</strong> to your live app's domain (e.g., <code>https://ais-pre-...run.app</code>).</li>
+            <li>Or add <code>https://ais-pre-...run.app/**</code> to the <strong>Redirect URLs</strong>.</li>
+          </ul>
+        </div>
       </div>
 
     </div>
@@ -314,6 +293,11 @@
           <button data-tab="tab-admins" class="tab-btn w-full px-4 py-2.5 rounded-xl text-left text-xs font-sans font-semibold flex items-center gap-3 transition-all cursor-pointer text-slate-400 hover:text-white hover:bg-slate-900/60">
             <span class="text-base">👑</span>
             <span>Admin Roles</span>
+          </button>
+
+          <button data-tab="tab-instagram" class="tab-btn w-full px-4 py-2.5 rounded-xl text-left text-xs font-sans font-semibold flex items-center gap-3 transition-all cursor-pointer text-slate-400 hover:text-white hover:bg-slate-900/60">
+            <span class="text-base">📸</span>
+            <span>Instagram Drops</span>
           </button>
         </div>
 
@@ -919,6 +903,27 @@
           </div>
         </div>
 
+        <!-- ==========================================
+             TAB 9: INSTAGRAM DROPS MANAGEMENT
+             ========================================== -->
+        <div id="tab-instagram" class="tab-panel hidden space-y-6">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-850 pb-4">
+            <div>
+              <h1 class="text-xl font-black text-white tracking-tight">Instagram Watch Drops</h1>
+              <p class="text-xs text-slate-400 mt-1">Upload and manage the 6 high-quality watch drops displayed on your home page Instagram feed.</p>
+            </div>
+            <button id="btn-save-instagram" class="px-5 py-2.5 bg-gold-500 hover:bg-gold-400 text-black text-xs font-sans font-bold uppercase tracking-wider rounded-xl transition-all shadow-md shadow-gold-500/10 cursor-pointer">
+              💾 Save All Changes
+            </button>
+          </div>
+
+          <!-- Dynamic 6 Image Grid for management -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="instagram-manager-grid">
+            <!-- 6 Image upload slots will be loaded here dynamically in admin.js -->
+            <div class="col-span-full text-center text-slate-500 font-mono py-10">Initializing Instagram management suite...</div>
+          </div>
+        </div>
+
       </main>
     </div>
 
@@ -1055,6 +1060,7 @@
             <div>
               <label class="block text-[9px] font-mono text-slate-500 uppercase mb-1">Direct Web Image URLs (Backup inputs, one URL per line)</label>
               <textarea id="p-image-urls" rows="2" placeholder="https://images.unsplash.com/photo-example-1&#10;https://images.unsplash.com/photo-example-2" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-[11px] font-mono text-slate-300 placeholder-slate-600 focus:outline-none"></textarea>
+              <p class="text-[9px] text-amber-500 font-mono mt-1">⚠️ MUST be direct image links (ending in .jpg, .png, .webp, or base64 data URLs). Do NOT paste Google Search page URLs (e.g. google.com/imgres) as they cannot be rendered.</p>
             </div>
 
             <!-- Drag & Drop Order Preview area -->
@@ -1188,6 +1194,10 @@
         <div>
           <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1">Category Image URL</label>
           <input type="text" id="cat-image" placeholder="https://images.unsplash.com/photo-example" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none" />
+          <div class="mt-1.5 flex items-center gap-2">
+            <span class="text-[9px] font-mono text-slate-500 uppercase">Or Upload File:</span>
+            <input type="file" id="cat-image-file" accept="image/*" class="text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-mono file:bg-slate-800 file:text-gold-400 hover:file:bg-slate-700 cursor-pointer" />
+          </div>
         </div>
         <div>
           <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1">Short Description</label>
@@ -1219,6 +1229,10 @@
         <div>
           <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1">Brand Logo URL</label>
           <input type="text" id="br-logo" placeholder="https://images.unsplash.com/logo-url" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:outline-none" />
+          <div class="mt-1.5 flex items-center gap-2">
+            <span class="text-[9px] font-mono text-slate-500 uppercase">Or Upload File:</span>
+            <input type="file" id="br-logo-file" accept="image/*" class="text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-mono file:bg-slate-800 file:text-gold-400 hover:file:bg-slate-700 cursor-pointer" />
+          </div>
         </div>
         <div>
           <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1">Description</label>
@@ -1262,11 +1276,11 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1">Start Date</label>
-            <input type="datetime-local" id="coup-start" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none text-[11px]" />
+            <input type="datetime-local" id="coup-start" onclick="try { this.showPicker(); } catch(e) {}" onfocus="try { this.showPicker(); } catch(e) {}" style="color-scheme: dark;" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none text-[11px]" />
           </div>
           <div>
             <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1">End Date</label>
-            <input type="datetime-local" id="coup-end" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none text-[11px]" />
+            <input type="datetime-local" id="coup-end" onclick="try { this.showPicker(); } catch(e) {}" onfocus="try { this.showPicker(); } catch(e) {}" style="color-scheme: dark;" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white focus:outline-none text-[11px]" />
           </div>
         </div>
         <div class="flex items-center gap-2 py-1">

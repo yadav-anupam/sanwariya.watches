@@ -15,6 +15,8 @@ export interface WatchProduct {
     strap: string;
   };
   inStock: boolean;
+  gstPercentage?: number;
+  shippingCharges?: number;
 }
 
 export interface Review {

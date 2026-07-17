@@ -13,6 +13,7 @@ let coupons = [];
 let activities = [];
 let inventoryLogs = [];
 let auditLogs = [];
+let instagramImages = [];
 
 // Selection states for bulk execution
 let selectedProductIds = new Set();
@@ -34,6 +35,9 @@ let sandboxBypassActive = false;
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Sanwariya Watch Admin Workspace Initializing...');
   
+  // Clear any remnant client-side mock bookings
+  localStorage.removeItem('local_orders');
+
   // Bind standard Event Listeners
   setupAuthListeners();
   setupTabListeners();
@@ -47,6 +51,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnRefreshBookings) {
     btnRefreshBookings.addEventListener('click', () => {
       fetchBookings();
+    });
+  }
+
+  // Bind Instagram settings save button
+  const btnSaveInstagram = document.getElementById('btn-save-instagram');
+  if (btnSaveInstagram) {
+    btnSaveInstagram.addEventListener('click', () => {
+      saveInstagramSettings();
     });
   }
 
@@ -114,15 +126,9 @@ async function checkCurrentSession() {
       const user = session.user;
       
       // Check if user is registered in the public.admins role mapping
-      const isAdmin = await verifyAdminPrivileges(user.id);
+      const isAdmin = await verifyAdminPrivileges(user);
       
-      const sandboxCheckbox = document.getElementById('sandbox-bypass-toggle');
-      const bypassChecked = (sandboxCheckbox ? sandboxCheckbox.checked : false) || (sessionStorage.getItem('sandbox_bypass') === 'true');
-
-      if (isAdmin || bypassChecked) {
-        if (bypassChecked) {
-          sessionStorage.setItem('sandbox_bypass', 'true');
-        }
+      if (isAdmin) {
         setSessionAuthenticated(user);
         await refreshAllData();
         hideOverlay();
@@ -131,7 +137,7 @@ async function checkCurrentSession() {
         showToast('Access Denied: Your profile is not mapped with Admin privileges.', 'error');
         await supabase.auth.signOut();
         showAuthScreen();
-        showAuthAlert('Forbidden Profile. This account lacks administrative credentials in public.admins. Enable "Sandbox Mode Bypass" below to automatically self-seed, or sign in using an authorized account.', 'error');
+        showAuthAlert('Forbidden Profile. This account lacks administrative credentials in public.admins. Please sign in using an authorized account.', 'error');
         hideOverlay();
       }
     } else {
@@ -157,20 +163,48 @@ function hideOverlay() {
   }
 }
 
-async function verifyAdminPrivileges(userId) {
+async function verifyAdminPrivileges(user) {
+  if (!user) return false;
   try {
-    const { data, error } = await supabase
+    // 1. Try checking by the primary uuid
+    let { data, error } = await supabase
       .from('admins')
-      .select('role')
-      .eq('id', userId)
+      .select('role, id, email')
+      .eq('id', user.id)
       .maybeSingle();
 
-    if (error) {
-      console.warn('Error reading admins table (possibly not seeded or migrated yet):', error.message);
-      return false;
+    if (data) {
+      return true;
     }
-    return !!data;
+
+    // 2. Fallback checking by email address (safely case-insensitive)
+    if (user.email) {
+      const emailLower = user.email.toLowerCase();
+      const { data: emailData, error: emailError } = await supabase
+        .from('admins')
+        .select('role, id, email')
+        .eq('email', emailLower)
+        .maybeSingle();
+
+      if (emailData) {
+        console.log('Admin verified via email address fallback. Aligning mismatched database ID with Auth user ID...');
+        // Correct the mismatched UUID in public.admins to match their actual authenticated user ID
+        try {
+          await supabase
+            .from('admins')
+            .update({ id: user.id })
+            .eq('email', emailLower);
+          showToast('Database entry aligned: Mapped UUID was synchronized successfully.', 'info');
+        } catch (updateErr) {
+          console.warn('Could not auto-align admin UUID in public.admins:', updateErr);
+        }
+        return true;
+      }
+    }
+
+    return false;
   } catch (err) {
+    console.error('Error verifying admin privileges:', err);
     return false;
   }
 }
@@ -205,62 +239,6 @@ function setupAuthListeners() {
   const forgotForm = document.getElementById('admin-forgot-form');
   const forgotBtn = document.getElementById('btn-forgot-mode');
   const backBtn = document.getElementById('btn-back-login');
-  const bypassCheckbox = document.getElementById('sandbox-bypass-toggle');
-
-  let authMode = 'signin';
-
-  // Auth Mode Switch buttons
-  const btnModeSignin = document.getElementById('auth-mode-signin');
-  const btnModeSignup = document.getElementById('auth-mode-signup');
-
-  function switchAuthMode(mode) {
-    authMode = mode;
-    hideAuthAlert();
-    if (mode === 'signup') {
-      if (btnModeSignup) {
-        btnModeSignup.className = "py-1.5 text-[11px] font-sans font-bold uppercase tracking-wider rounded-lg transition-all text-gold-500 bg-slate-900 border border-slate-800 cursor-pointer";
-      }
-      if (btnModeSignin) {
-        btnModeSignin.className = "py-1.5 text-[11px] font-sans font-bold uppercase tracking-wider rounded-lg transition-all text-slate-400 hover:text-white cursor-pointer";
-      }
-      const loginBtnText = document.getElementById('login-btn-text');
-      if (loginBtnText) loginBtnText.textContent = 'Create & Register Admin Account';
-    } else {
-      if (btnModeSignin) {
-        btnModeSignin.className = "py-1.5 text-[11px] font-sans font-bold uppercase tracking-wider rounded-lg transition-all text-gold-500 bg-slate-900 border border-slate-800 cursor-pointer";
-      }
-      if (btnModeSignup) {
-        btnModeSignup.className = "py-1.5 text-[11px] font-sans font-bold uppercase tracking-wider rounded-lg transition-all text-slate-400 hover:text-white cursor-pointer";
-      }
-      const loginBtnText = document.getElementById('login-btn-text');
-      if (loginBtnText) loginBtnText.textContent = 'Authenticate Credentials';
-    }
-  }
-
-  if (btnModeSignin) {
-    btnModeSignin.addEventListener('click', () => switchAuthMode('signin'));
-  }
-  if (btnModeSignup) {
-    btnModeSignup.addEventListener('click', () => switchAuthMode('signup'));
-  }
-
-  // Handle Sandbox Bypass Toggle local state
-  if (bypassCheckbox) {
-    // Restore state from sessionStorage if set
-    if (sessionStorage.getItem('sandbox_bypass') === 'true') {
-      bypassCheckbox.checked = true;
-      sandboxBypassActive = true;
-    }
-    bypassCheckbox.addEventListener('change', (e) => {
-      sandboxBypassActive = e.target.checked;
-      if (sandboxBypassActive) {
-        sessionStorage.setItem('sandbox_bypass', 'true');
-      } else {
-        sessionStorage.removeItem('sandbox_bypass');
-      }
-      showToast(`Sandbox Bypass state toggled to: ${sandboxBypassActive}.`, 'warning');
-    });
-  }
 
   // Toggle Screen modes
   if (forgotBtn) {
@@ -288,58 +266,25 @@ function setupAuthListeners() {
 
       const btnSubmit = document.getElementById('btn-admin-login');
       btnSubmit.disabled = true;
-      const initialText = btnSubmit.textContent;
-      btnSubmit.textContent = authMode === 'signup' ? 'Creating Admin Crypt...' : 'Verifying Authenticity...';
+      btnSubmit.textContent = 'Verifying Authenticity...';
       hideAuthAlert();
 
       try {
-        if (authMode === 'signup') {
-          // Sign Up flow
-          const { data, error } = await supabase.auth.signUp({ email, password });
-          if (error) throw error;
+        // Sign In flow
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
 
-          if (data && data.user) {
-            // Auto-register in public.admins
-            await autoSeedSandboxAdmin(data.user.id, data.user.email);
-            
-            // Check if signed in immediately (some configs allow session on signup)
-            if (data.session) {
-              setSessionAuthenticated(data.user);
-              await refreshAllData();
-              showToast('Admin account registered and logged in!', 'success');
-            } else {
-              showAuthAlert('Admin account created! You can now sign in using the "Sign In" tab above.', 'success');
-              showToast('Admin account registered successfully!', 'success');
-              switchAuthMode('signin');
-            }
-          } else {
-            throw new Error('Registration did not return user payload.');
-          }
+        // Verify Admin Table Record mapping
+        const isAdmin = await verifyAdminPrivileges(data.user);
+        
+        if (isAdmin) {
+          setSessionAuthenticated(data.user);
+          await refreshAllData();
         } else {
-          // Sign In flow
-          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-
-          // Verify Admin Table Record mapping
-          const isAdmin = await verifyAdminPrivileges(data.user.id);
-          const bypassEnabled = sandboxBypassActive || (sessionStorage.getItem('sandbox_bypass') === 'true');
-          
-          if (isAdmin || bypassEnabled) {
-            if (bypassEnabled) {
-              sessionStorage.setItem('sandbox_bypass', 'true');
-            }
-            // If bypassed or verified, add to DB if not present
-            if (bypassEnabled && !isAdmin) {
-              await autoSeedSandboxAdmin(data.user.id, data.user.email);
-            }
-            setSessionAuthenticated(data.user);
-            await refreshAllData();
-          } else {
-            showToast('Forbidden Profile: Mapped administrator role required.', 'error');
-            await supabase.auth.signOut();
-            showAuthScreen();
-            showAuthAlert('Forbidden Profile. This account lacks the administrative credentials inside public.admins.', 'error');
-          }
+          showToast('Forbidden Profile: Mapped administrator role required.', 'error');
+          await supabase.auth.signOut();
+          showAuthScreen();
+          showAuthAlert('Forbidden Profile. This account lacks the administrative credentials inside public.admins.', 'error');
         }
 
       } catch (err) {
@@ -347,7 +292,7 @@ function setupAuthListeners() {
         showAuthAlert(err.message || 'Authentication operation failed.', 'error');
       } finally {
         btnSubmit.disabled = false;
-        btnSubmit.textContent = authMode === 'signup' ? 'Create & Register Admin Account' : 'Authenticate Credentials';
+        btnSubmit.textContent = 'Authenticate Credentials';
       }
     });
   }
@@ -382,27 +327,11 @@ function setupAuthListeners() {
     });
   }
 
-  // OTP Simulated Verification Helper
-  const otpBtn = document.getElementById('btn-verify-otp');
-  if (otpBtn) {
-    otpBtn.addEventListener('click', () => {
-      const otpCode = document.getElementById('forgot-otp-code').value.trim();
-      if (otpCode.length < 4) {
-        showToast('Please enter a valid simulated 6-digit OTP code.', 'error');
-        return;
-      }
-      showToast('Simulated OTP code verified! Forwarding to password updates...', 'success');
-      // Redirect helper simulation
-      setTimeout(() => {
-        window.location.href = '/update-password.html';
-      }, 1500);
-    });
-  }
+
 
   // Admin Logout button
   document.getElementById('btn-admin-logout').addEventListener('click', async () => {
     try {
-      sessionStorage.removeItem('sandbox_bypass');
       await supabase.auth.signOut();
       showToast('SSL Secure Admin Crypt closed. Mapped credentials de-authorized.', 'warning');
       setTimeout(() => {
@@ -412,17 +341,6 @@ function setupAuthListeners() {
       showToast('Error logging out of administrative session.', 'error');
     }
   });
-}
-
-async function autoSeedSandboxAdmin(id, email) {
-  try {
-    const { error } = await supabase
-      .from('admins')
-      .upsert({ id, email, role: 'superadmin' });
-    if (error) console.warn('Could not auto-seed admin mapping:', error.message);
-  } catch (err) {
-    console.error('Bypass seed failure:', err);
-  }
 }
 
 function showAuthAlert(message, type) {
@@ -490,7 +408,8 @@ export function switchTab(tabId) {
     'tab-bookings': 'Customer Bookings',
     'tab-stock': 'Stock & Warehouse Logs',
     'tab-logs': 'Admin Activity Audit',
-    'tab-admins': 'Admin Roles'
+    'tab-admins': 'Admin Roles',
+    'tab-instagram': 'Instagram Drops'
   };
   document.getElementById('breadcrumb-current').textContent = textLabels[tabId] || 'Workspace';
 
@@ -510,6 +429,8 @@ export function switchTab(tabId) {
     fetchAuditActivityLogs();
   } else if (tabId === 'tab-admins') {
     fetchAdminRoles();
+  } else if (tabId === 'tab-instagram') {
+    fetchInstagramSettings();
   }
 }
 window.switchTab = switchTab; // Expose globally for HTML onclicks
@@ -549,12 +470,15 @@ async function fetchDashboardMetrics() {
         let fallback = await supabase.from('orders').select('total_price, status, phone');
         if (!fallback.error) {
           bookingsList = fallback.data || [];
+        } else {
+          bookingsList = [];
         }
       } else {
         bookingsList = data || [];
       }
     } catch (bErr) {
       console.warn('Could not query bookings/orders for metrics calculation:', bErr);
+      bookingsList = [];
     }
 
     const totalOrders = bookingsList.length;
@@ -738,7 +662,7 @@ async function fetchProducts() {
     // Pull full query
     let query = supabase
       .from('products')
-      .select('*', { count: 'exact' });
+      .select('*, product_images(image_url, sort_order)', { count: 'exact' });
 
     // Apply Filter Parameters
     const searchVal = document.getElementById('filter-search').value.trim().toLowerCase();
@@ -785,7 +709,12 @@ async function fetchProducts() {
     const { data, count, error } = await query;
     if (error) throw error;
 
-    products = data || [];
+    products = (data || []).map(p => {
+      return {
+        ...p,
+        images: p.product_images ? p.product_images.sort((a,b) => (a.sort_order || 0) - (b.sort_order || 0)).map(img => img.image_url) : []
+      };
+    });
     totalProductsCount = count || 0;
 
     // Render table rows
@@ -1057,30 +986,59 @@ async function duplicateProduct(id) {
   try {
     const { data: item, error: getErr } = await supabase
       .from('products')
-      .select('*')
+      .select('*, product_images(image_url, sort_order)')
       .eq('id', id)
       .single();
 
     if (getErr) throw getErr;
 
-    // Create shallow copy with modified identifiers
+    // Create shallow copy with modified identifiers and valid schema columns
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     const clonedObj = {
-      ...item,
-      id: undefined, // Let DB generate new uuid
       name: `${item.name} (Copy)`,
       slug: `${item.slug}-copy-${randomSuffix}`,
       sku: item.sku ? `${item.sku}-CP${randomSuffix}` : `CP-${randomSuffix}`,
+      category_id: item.category_id,
+      brand_id: item.brand_id,
+      barcode: item.barcode,
+      short_description: item.short_description,
+      full_description: item.full_description,
       status: 'draft', // defaults to draft
-      created_at: undefined,
-      updated_at: undefined
+      is_featured: item.is_featured,
+      is_trending: item.is_trending,
+      is_best_seller: item.is_best_seller,
+      pricing_original: item.pricing_original,
+      pricing_selling: item.pricing_selling,
+      pricing_tax: item.pricing_tax,
+      pricing_shipping: item.pricing_shipping,
+      variant_size: item.variant_size,
+      variant_color: item.variant_color,
+      variant_weight: item.variant_weight,
+      variant_dimensions: item.variant_dimensions,
+      variant_material: item.variant_material,
+      seo_title: item.seo_title,
+      seo_description: item.seo_description,
+      seo_keywords: item.seo_keywords,
+      tags: item.tags
     };
 
-    const { error: insErr } = await supabase
+    const { data: insertedData, error: insErr } = await supabase
       .from('products')
-      .insert(clonedObj);
+      .insert(clonedObj)
+      .select('id')
+      .single();
 
     if (insErr) throw insErr;
+
+    // Duplicate product images if they exist
+    if (insertedData && item.product_images && item.product_images.length > 0) {
+      const imagePayloads = item.product_images.map(img => ({
+        product_id: insertedData.id,
+        image_url: img.image_url,
+        sort_order: img.sort_order
+      }));
+      await supabase.from('product_images').insert(imagePayloads);
+    }
 
     showToast(`Successfully duplicated watch: "${item.name}".`, 'success');
     logActivity('Duplicated Product Row', { source_id: id, name: clonedObj.name });
@@ -1216,12 +1174,12 @@ function setupFormListeners() {
         seo_description: document.getElementById('p-seo-desc').value.trim() || null,
         seo_keywords: document.getElementById('p-seo-keywords').value.trim() || null,
         
-        images: finalImages,
         tags: tagsArray
       };
 
       try {
         let responseError = null;
+        let savedProductId = id;
 
         if (id) {
           // Update
@@ -1230,12 +1188,34 @@ function setupFormListeners() {
           logActivity('Update Product Specs', { id, name: payload.name });
         } else {
           // Create
-          const { error } = await supabase.from('products').insert(payload);
+          const { data, error } = await supabase.from('products').insert(payload).select('id').single();
           responseError = error;
+          if (data) {
+            savedProductId = data.id;
+          }
           logActivity('Create New Product', { name: payload.name });
         }
 
         if (responseError) throw responseError;
+
+        // Save images into product_images table
+        if (savedProductId) {
+          // 1. Delete existing images
+          await supabase.from('product_images').delete().eq('product_id', savedProductId);
+
+          // 2. Insert new images
+          if (finalImages && finalImages.length > 0) {
+            const imagePayloads = finalImages.map((img, index) => ({
+              product_id: savedProductId,
+              image_url: img,
+              sort_order: index
+            }));
+            const { error: imgError } = await supabase.from('product_images').insert(imagePayloads);
+            if (imgError) {
+              console.warn('Error inserting product images:', imgError.message);
+            }
+          }
+        }
 
         showToast(`Successfully saved luxury timepiece: "${payload.name}"!`, 'success');
         closeProductModal();
@@ -1384,6 +1364,100 @@ function setupFormListeners() {
       fetchAdminRoles();
     });
   }
+
+  // Category image upload file listener
+  const catImageFile = document.getElementById('cat-image-file');
+  if (catImageFile) {
+    catImageFile.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const publicUrl = await uploadSingleFile(file, 'categories');
+        if (publicUrl) {
+          document.getElementById('cat-image').value = publicUrl;
+          showToast('Category image file successfully processed!', 'success');
+        }
+      }
+    });
+  }
+
+  // Brand logo upload file listener
+  const brLogoFile = document.getElementById('br-logo-file');
+  if (brLogoFile) {
+    brLogoFile.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const publicUrl = await uploadSingleFile(file, 'brands');
+        if (publicUrl) {
+          document.getElementById('br-logo').value = publicUrl;
+          showToast('Brand logo file successfully processed!', 'success');
+        }
+      }
+    });
+  }
+}
+
+// ENSURE STORAGE BUCKET EXISTS IN SUPABASE (Public access, auto-setup)
+async function ensureStorageBucketExists(bucketName = 'product-images') {
+  try {
+    const { data: buckets, error: getError } = await supabase.storage.listBuckets();
+    if (getError) {
+      console.warn('Could not list buckets:', getError.message);
+      return;
+    }
+    const exists = buckets && buckets.some(b => b.name === bucketName);
+    if (!exists) {
+      console.log(`Bucket "${bucketName}" not found. Attempting creation...`);
+      const { error: createError } = await supabase.storage.createBucket(bucketName, {
+        public: true,
+        fileSizeLimit: 5242880, // 5MB limit
+      });
+      if (createError) {
+        console.warn(`Could not create bucket "${bucketName}" programmatically:`, createError.message);
+      } else {
+        console.log(`Bucket "${bucketName}" successfully created.`);
+      }
+    }
+  } catch (err) {
+    console.warn('Bucket ensuring failed (non-blocking):', err);
+  }
+}
+
+// UPLOAD SINGLE FILE TO STORAGE BUCKET
+async function uploadSingleFile(file, folder) {
+  try {
+    showToast(`Processing & uploading file to ${folder}...`, 'warning');
+    const compressedBase64 = await compressImageCanvas(file, 800, 800, 0.75);
+    
+    // Auto ensure bucket exists
+    await ensureStorageBucketExists('product-images');
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `${folder}/${fileName}`;
+    
+    const response = await fetch(compressedBase64);
+    const blob = await response.blob();
+
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, blob, { contentType: file.type, cacheControl: '3600' });
+
+    if (error) {
+      console.warn('Storage upload error, using base64 fallback:', error.message);
+      return compressedBase64;
+    } else {
+      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      return publicUrl;
+    }
+  } catch (err) {
+    console.error(`Error uploading file to ${folder}:`, err);
+    showToast(`Upload failed, using original base64 fallback.`, 'warning');
+    try {
+      return await compressImageCanvas(file, 800, 800, 0.75);
+    } catch {
+      return '';
+    }
+  }
 }
 
 // COMPRESS & UPLOAD IMAGES
@@ -1391,6 +1465,7 @@ async function handleImageFilesUpload(files) {
   if (files.length === 0) return;
 
   showToast(`Compressing & preparing ${files.length} images...`, 'warning');
+  await ensureStorageBucketExists('product-images');
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -1575,8 +1650,12 @@ export async function openProductModal(id = null) {
     showToast('Fetching product specifications...', 'warning');
 
     try {
-      const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+      const { data, error } = await supabase.from('products').select('*, product_images(image_url, sort_order)').eq('id', id).single();
       if (error) throw error;
+
+      if (data) {
+        data.images = data.product_images ? data.product_images.sort((a,b) => (a.sort_order || 0) - (b.sort_order || 0)).map(img => img.image_url) : [];
+      }
 
       activeProduct = data;
 
@@ -1674,7 +1753,7 @@ function bindDropdownSelectors() {
   const pBrand = document.getElementById('p-brand');
 
   if (pCat) {
-    pCat.innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    pCat.innerHTML = categories.filter(c => c.name !== '__INSTAGRAM_IMAGES__').map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   }
   if (pBrand) {
     pBrand.innerHTML = brands.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
@@ -1748,13 +1827,15 @@ function renderCategoriesTable() {
   const table = document.getElementById('category-table-body');
   if (!table) return;
 
-  if (categories.length === 0) {
+  const filteredCategories = categories.filter(c => c.name !== '__INSTAGRAM_IMAGES__');
+
+  if (filteredCategories.length === 0) {
     table.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500 italic">No category records.</td></tr>`;
     return;
   }
 
   table.innerHTML = '';
-  categories.forEach(c => {
+  filteredCategories.forEach(c => {
     const row = document.createElement('tr');
     row.className = "border-b border-slate-850 hover:bg-slate-900/20";
     row.innerHTML = `
@@ -2324,11 +2405,13 @@ async function fetchBookings() {
     });
 
   } catch (err) {
-    console.error('Error fetching bookings/orders database:', err);
+    console.warn('Info: bookings/orders database tables are not initialized or empty yet:', err);
     container.innerHTML = `
       <tr>
-        <td colspan="8" class="p-8 text-center text-red-400 text-xs">
-          ⚠️ Could not load bookings database. Ensure public.bookings or public.orders tables exist. Error: ${err.message}
+        <td colspan="8" class="p-12 text-center text-slate-500 italic">
+          <span class="text-2xl">🛍️</span>
+          <p class="mt-2 text-xs">No customer bookings or checkout records found yet.</p>
+          <p class="text-[10px] text-slate-600 mt-1">To view persistent real-time checkouts, please verify that the 'bookings' or 'orders' tables are created in your Supabase database schema.</p>
         </td>
       </tr>
     `;
@@ -2336,12 +2419,38 @@ async function fetchBookings() {
 }
 window.fetchBookings = fetchBookings;
 
+async function parseItemsToText(items) {
+  try {
+    let parsed = [];
+    if (typeof items === 'string') {
+      parsed = JSON.parse(items);
+    } else if (Array.isArray(items)) {
+      parsed = items;
+    }
+    if (parsed.length > 0) {
+      return parsed.map(item => `  • ${item.name || 'Premium Timepiece'} (Qty: ${item.quantity || 1})`).join('\n');
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+  return '';
+}
+
 async function approveBooking(id, tableUsed) {
   openConfirmModal(
     'Approve Booking Order',
     'Are you sure you want to approve this customer order? This marks the timepiece checkout as verified and updates booking status.',
     async () => {
       try {
+        // Fetch the booking first to get customer details
+        const { data: booking, error: fetchErr } = await supabase
+          .from(tableUsed)
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (fetchErr) throw fetchErr;
+
         const { error } = await supabase
           .from(tableUsed)
           .update({ status: 'Approved' })
@@ -2355,6 +2464,32 @@ async function approveBooking(id, tableUsed) {
         // Refresh
         fetchBookings();
         fetchDashboardMetrics();
+
+        // Send WhatsApp message if phone exists
+        if (booking && booking.phone) {
+          const cleanPhone = booking.phone.replace(/[^0-9]/g, '');
+          const itemsText = await parseItemsToText(booking.items);
+          const message = `Hello *${booking.name}*!
+
+Your order at *Sanwariya Watches* has been *APPROVED*! 🎉
+
+📦 *Order Details*:
+- *Ref ID*: #${booking.id.substring(0, 8)}
+- *Total Price*: ₹${Number(booking.total_price || 0).toLocaleString('en-IN')}
+${itemsText ? `- *Items*:\n${itemsText}` : ''}
+
+Our team is currently preparing your premium timepieces for packaging and dispatch. You will receive tracking details shortly! 
+
+Thank you for choosing Sanwariya Watches. If you have any questions, feel free to chat with us here.`;
+
+          const encodedMsg = encodeURIComponent(message);
+          const waUrl = `https://wa.me/91${cleanPhone}?text=${encodedMsg}`;
+          
+          showToast('Opening WhatsApp to send order status notification...', 'info');
+          setTimeout(() => {
+            window.open(waUrl, '_blank');
+          }, 1200);
+        }
       } catch (err) {
         showToast(`Failed to approve order: ${err.message}`, 'error');
       }
@@ -2369,6 +2504,15 @@ async function rejectBooking(id, tableUsed) {
     'Are you sure you want to reject this customer order?',
     async () => {
       try {
+        // Fetch the booking first to get customer details
+        const { data: booking, error: fetchErr } = await supabase
+          .from(tableUsed)
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (fetchErr) throw fetchErr;
+
         const { error } = await supabase
           .from(tableUsed)
           .update({ status: 'Rejected' })
@@ -2382,6 +2526,26 @@ async function rejectBooking(id, tableUsed) {
         // Refresh
         fetchBookings();
         fetchDashboardMetrics();
+
+        // Send WhatsApp message if phone exists
+        if (booking && booking.phone) {
+          const cleanPhone = booking.phone.replace(/[^0-9]/g, '');
+          const message = `Hello *${booking.name}*,
+
+We regret to inform you that your order reference *#${booking.id.substring(0, 8)}* at *Sanwariya Watches* has been *REJECTED*. ✕
+
+If you have completed any payments or believe this is an error, please share your receipt with us here so our support team can verify and resolve this immediately.
+
+Thank you for your patience and cooperation.`;
+
+          const encodedMsg = encodeURIComponent(message);
+          const waUrl = `https://wa.me/91${cleanPhone}?text=${encodedMsg}`;
+          
+          showToast('Opening WhatsApp to send order status notification...', 'info');
+          setTimeout(() => {
+            window.open(waUrl, '_blank');
+          }, 1200);
+        }
       } catch (err) {
         showToast(`Failed to reject order: ${err.message}`, 'error');
       }
@@ -2550,3 +2714,170 @@ export function deleteAdminRole(id, email) {
   );
 }
 window.deleteAdminRole = deleteAdminRole;
+
+// ==========================================
+// TAB 9: DYNAMIC INSTAGRAM WATCH DROPS SETTINGS
+// ==========================================
+export async function fetchInstagramSettings() {
+  const grid = document.getElementById('instagram-manager-grid');
+  if (!grid) return;
+
+  grid.innerHTML = '<div class="col-span-full text-center text-slate-400 font-mono py-10">Querying Supabase vault settings...</div>';
+
+  try {
+    // Check if the system category '__INSTAGRAM_IMAGES__' exists
+    let { data: catRow, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('name', '__INSTAGRAM_IMAGES__')
+      .maybeSingle();
+
+    const fallbackUrls = [
+      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800',
+      'https://images.unsplash.com/photo-1547996160-81dfa63595aa?q=80&w=800',
+      'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?q=80&w=800',
+      'https://images.unsplash.com/photo-1622434641406-a158123450f9?q=80&w=800',
+      'https://images.unsplash.com/photo-1524592094714-0f0654e20314?q=80&w=800',
+      'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?q=80&w=800'
+    ];
+
+    if (!catRow) {
+      // Create '__INSTAGRAM_IMAGES__' category row dynamically to act as the settings document
+      const { data: newRow, error: createError } = await supabase
+        .from('categories')
+        .insert([{
+          name: '__INSTAGRAM_IMAGES__',
+          description: JSON.stringify(fallbackUrls),
+          image_url: fallbackUrls[0]
+        }])
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      catRow = newRow;
+    }
+
+    if (catRow && catRow.description) {
+      try {
+        const parsed = JSON.parse(catRow.description);
+        if (Array.isArray(parsed) && parsed.length === 6) {
+          instagramImages = parsed;
+        } else {
+          instagramImages = fallbackUrls;
+        }
+      } catch (parseErr) {
+        instagramImages = fallbackUrls;
+      }
+    } else {
+      instagramImages = fallbackUrls;
+    }
+
+    renderInstagramManager();
+  } catch (err) {
+    console.error('Failed to load Instagram watch drops config:', err);
+    grid.innerHTML = `<div class="col-span-full text-center text-red-400 font-mono py-10">Vault query failed: ${err.message}</div>`;
+  }
+}
+window.fetchInstagramSettings = fetchInstagramSettings;
+
+function renderInstagramManager() {
+  const grid = document.getElementById('instagram-manager-grid');
+  if (!grid) return;
+
+  grid.innerHTML = '';
+  instagramImages.forEach((imgUrl, index) => {
+    const card = document.createElement('div');
+    card.className = "p-5 bg-slate-900 border border-slate-850 rounded-2xl flex flex-col space-y-4 shadow-xl";
+    card.innerHTML = `
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <span class="text-xs font-mono font-bold text-gold-500 uppercase tracking-widest">Watch Slot #${index + 1}</span>
+        <span class="text-[9px] text-slate-500 uppercase">Only Watches</span>
+      </div>
+
+      <div class="h-44 w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 relative group">
+        <img id="insta-preview-${index}" src="${imgUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300'}" class="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <p class="text-[10px] text-white font-bold tracking-widest uppercase">Live Showroom Drop Preview</p>
+        </div>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div>
+          <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1 font-bold">Image URL String</label>
+          <input type="text" id="insta-url-${index}" value="${imgUrl}" oninput="document.getElementById('insta-preview-${index}').src = this.value" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono text-[10px] focus:outline-none focus:border-gold-500" />
+        </div>
+
+        <div>
+          <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1 font-bold">Or Upload New Image</label>
+          <div class="relative">
+            <input type="file" id="insta-file-${index}" accept="image/*" class="hidden" />
+            <button type="button" onclick="document.getElementById('insta-file-${index}').click()" class="w-full py-2.5 bg-slate-950 hover:bg-slate-850 text-slate-300 font-sans font-bold text-[10px] uppercase border border-dashed border-slate-800 rounded-lg transition-all cursor-pointer">
+              📁 Choose Local Image
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    grid.appendChild(card);
+
+    // Bind file upload events
+    const fileInput = document.getElementById(`insta-file-${index}`);
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const publicUrl = await uploadSingleFile(file, 'instagram-drops');
+        if (publicUrl) {
+          document.getElementById(`insta-url-${index}`).value = publicUrl;
+          document.getElementById(`insta-preview-${index}`).src = publicUrl;
+          showToast(`Uploaded watch slot #${index + 1} successfully!`, 'success');
+        }
+      } catch (uploadErr) {
+        showToast('Image uploading failed.', 'error');
+      }
+    });
+  });
+}
+
+export async function saveInstagramSettings() {
+  const btn = document.getElementById('btn-save-instagram');
+  btn.disabled = true;
+  btn.textContent = '💾 Saving...';
+
+  try {
+    const urls = [];
+    for (let i = 0; i < 6; i++) {
+      const urlInput = document.getElementById(`insta-url-${i}`);
+      if (urlInput && urlInput.value) {
+        urls.push(urlInput.value);
+      }
+    }
+
+    if (urls.length !== 6) {
+      throw new Error('Please ensure all 6 image slots have valid URL strings.');
+    }
+
+    const { error } = await supabase
+      .from('categories')
+      .update({
+        description: JSON.stringify(urls),
+        image_url: urls[0]
+      })
+      .eq('name', '__INSTAGRAM_IMAGES__');
+
+    if (error) throw error;
+
+    instagramImages = urls;
+    showToast('Dynamic Instagram Watch drops successfully saved & synchronized!', 'success');
+    logActivity('Update Instagram Feed', { count: urls.length });
+    fetchInstagramSettings();
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Save All Changes';
+  }
+}
+window.saveInstagramSettings = saveInstagramSettings;
