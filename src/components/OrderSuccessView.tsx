@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { CartItem } from '../types';
-import { BRAND_STATS } from '../data';
+import { BRAND_STATS, WATCHES_CATALOG } from '../data';
 
 interface OrderSuccessViewProps {
   order: {
@@ -352,12 +352,31 @@ export const OrderSuccessView: React.FC<OrderSuccessViewProps> = ({ order, onCon
                             </span>
                           </div>
 
-                          <div className="space-y-1 pl-1 border-l border-neutral-800">
-                            {itemsList.map((item: any, idx: number) => (
-                              <p key={idx} className="text-[11px] text-neutral-300 font-sans truncate">
-                                • {item.name || 'Premium Timepiece'} <span className="text-neutral-500">x{item.quantity || 1}</span>
-                              </p>
-                            ))}
+                          <div className="space-y-2.5 pl-1 border-l border-neutral-800">
+                            {itemsList.map((item: any, idx: number) => {
+                              const matchedWatch = WATCHES_CATALOG.find(w => w.id === item.id);
+                              const imgUrl = item.image || matchedWatch?.image;
+                              return (
+                                <div key={idx} className="flex items-center gap-3">
+                                  {imgUrl && (
+                                    <img 
+                                      src={imgUrl} 
+                                      alt={item.name || 'Premium Timepiece'} 
+                                      className="w-10 h-10 rounded object-cover border border-neutral-900 bg-neutral-900 shrink-0"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-sans font-bold text-neutral-200 truncate">
+                                      {item.name || 'Premium Timepiece'}
+                                    </p>
+                                    <span className="text-[9px] font-mono text-neutral-500 uppercase">
+                                      {item.brand || matchedWatch?.brand || 'Sanwariya'} • Qty: {item.quantity || 1}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
 
                           <div className="flex justify-between items-center text-[11px] border-t border-neutral-900/50 pt-2">

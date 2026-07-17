@@ -1,5 +1,5 @@
 // login.js
-// Modular Client Sign In Controller for Sanwariya Watches
+// Modular User Sign In Controller for Sanwariya Watches
 
 import { supabase } from './supabase.js';
 

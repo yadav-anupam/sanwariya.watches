@@ -122,13 +122,13 @@ export const Header: React.FC<HeaderProps> = ({
               <span>👑 Admin Portal</span>
             </a>
 
-            {/* Client Authentication & Account Access */}
+            {/* User Authentication & Account Access */}
             <div className="hidden sm:flex items-center gap-2">
               {user ? (
                 <div className="flex items-center gap-1.5 pl-2 border-l border-neutral-900">
                   <div className="hidden md:flex flex-col items-end">
                     <span className="text-[9px] font-mono text-gold-500 uppercase tracking-wider">
-                      {isAdmin ? 'System Admin 👑' : 'Client Member'}
+                      {isAdmin ? 'System Admin 👑' : 'User Member'}
                     </span>
                     <span className="text-[11px] text-white font-sans font-bold max-w-[90px] truncate">
                       {user.user_metadata?.full_name || user.email?.split('@')[0]}
@@ -218,7 +218,7 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Mobile Menu Footer Details */}
               <div className="flex flex-col gap-4 border-t border-neutral-900 pt-6">
-                {/* Client Auth for Mobile */}
+                {/* User Auth for Mobile */}
                 {user ? (
                   <div className="p-3.5 rounded-xl border border-neutral-900 bg-neutral-950 flex flex-col gap-2.5">
                     <div className="flex items-center gap-3">
@@ -226,7 +226,7 @@ export const Header: React.FC<HeaderProps> = ({
                         {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-mono text-gold-500 uppercase tracking-wider">Client Member</p>
+                        <p className="text-[9px] font-mono text-gold-500 uppercase tracking-wider">User Member</p>
                         <p className="text-xs font-sans font-bold text-white truncate">
                           {user.user_metadata?.full_name || user.email}
                         </p>
@@ -252,7 +252,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full py-3 rounded-lg border border-neutral-850 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-sans font-bold tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <UserIcon size="12" className="text-gold-400" />
-                    <span>Client Sign In</span>
+                    <span>User Sign In</span>
                   </button>
                 )}
 

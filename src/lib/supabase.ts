@@ -62,6 +62,9 @@ export async function saveOrderBooking(data: {
     brand: string;
     price: number;
     quantity: number;
+    image?: string;
+    gst_percentage?: number;
+    shipping_charge?: number;
   }>;
   totalPrice: number;
 }) {

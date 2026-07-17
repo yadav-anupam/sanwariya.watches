@@ -203,7 +203,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
               Sanwariya Watches
             </span>
             <h3 className="text-xl font-sans font-bold text-white tracking-wide mt-1">
-              {mode === 'signin' && 'Client Portal Access'}
+              {mode === 'signin' && 'User Portal Access'}
               {mode === 'signup' && 'Create Luxury Account'}
               {mode === 'forgot' && 'Reset Secure Passcode'}
             </h3>
@@ -243,7 +243,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
               {/* Email */}
               <div>
                 <label className="block text-[10px] font-mono tracking-wider text-neutral-400 uppercase mb-1.5">
-                  Corporate / Client Email
+                  Corporate / User Email
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" size="15" />
@@ -325,7 +325,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
               {/* Full Name */}
               <div>
                 <label className="block text-[10px] font-mono tracking-wider text-neutral-400 uppercase mb-1.5">
-                  Full Name / Client Title
+                  Full Name / User Title
                 </label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" size="15" />
@@ -417,7 +417,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
 
               {/* Quick toggle to Login */}
               <p className="text-center text-xs text-neutral-400 mt-4 pt-2 border-t border-neutral-900">
-                Already have a client account?{' '}
+                Already have a user account?{' '}
                 <button
                   type="button"
                   onClick={() => handleModeChange('signin')}
