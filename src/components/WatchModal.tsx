@@ -65,23 +65,32 @@ export const WatchModal: React.FC<WatchModalProps> = ({
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           className="relative w-full max-w-4xl bg-neutral-950 border border-neutral-900 rounded-3xl overflow-hidden shadow-2xl z-10 my-8"
         >
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 z-20 p-2 text-neutral-400 hover:text-white bg-black/50 hover:bg-neutral-900 rounded-full cursor-pointer"
-            aria-label="Close details"
-          >
-            <X size="20" />
-          </button>
+          {/* Header with prominent Close (Cross) Button above the image */}
+          <div className="w-full flex justify-between items-center px-6 py-4 border-b border-neutral-900 bg-neutral-950 sticky top-0 z-30">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-gold-500 animate-pulse" />
+              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-neutral-400">
+                TIMEPIECE VIEW
+              </span>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-neutral-800 hover:border-gold-500/40 bg-neutral-900 hover:bg-neutral-850 text-neutral-400 hover:text-gold-400 transition-all duration-200 cursor-pointer text-xs font-sans font-bold uppercase tracking-wider"
+              aria-label="Close product details"
+            >
+              <X size="14" />
+              <span>Close</span>
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2">
             {/* Image Section */}
-            <div className="relative h-72 md:h-full min-h-[300px] bg-neutral-900 overflow-hidden">
+            <div className="relative h-72 md:h-full min-h-[350px] md:min-h-[450px] bg-neutral-950 flex items-center justify-center p-6 md:p-8 overflow-hidden border-b md:border-b-0 md:border-r border-neutral-900">
               <img
                 src={product.image}
                 alt={product.name}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                className="max-w-full max-h-full w-auto h-auto object-contain transition-transform duration-700 hover:scale-105"
               />
               {/* Product Badge Tag */}
               <div className="absolute top-6 left-6">
