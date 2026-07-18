@@ -50,9 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('Initial session lookup error:', e);
     }
 
-    // Try parsing URL query parameter ?token=
+    // Try parsing URL query parameter ?token=, ?code=, or ?email=
     const params = new URLSearchParams(window.location.search);
     const tokenQuery = params.get('token');
+    const codeQuery = params.get('code');
     const emailQuery = params.get('email') || params.get('username');
 
     if (emailQuery) {
@@ -60,22 +61,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (tokenQuery) {
       verifyTokenInput.value = tokenQuery;
+    } else if (codeQuery) {
+      verifyTokenInput.value = codeQuery;
     }
 
-    // Check if there is an active hash in the URL (indicating direct redirect parsed by Supabase)
-    if (window.location.hash.includes('access_token=') || window.location.hash.includes('type=recovery')) {
-      console.log('Hash token detected. Waiting for Supabase client parser...');
-      setTimeout(async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          verifyOtpForm.classList.add('hidden');
-          updateForm.classList.remove('hidden');
-          sessionWarning.classList.add('hidden');
-        } else {
-          sessionWarning.classList.remove('hidden');
-          verifyOtpForm.classList.remove('hidden');
-        }
-      }, 800);
+    const hasHash = window.location.hash.includes('access_token=') || window.location.hash.includes('type=recovery');
+    const hasCode = !!codeQuery;
+
+    if (hasHash || hasCode) {
+      console.log('Redirect context detected. Waiting for Supabase client parser...');
+      setVerifyLoading(true);
+      verifyBtnText.textContent = 'Processing secure recovery token...';
+      
+      // Let onAuthStateChange handle the state shift. If nothing happens after 3 seconds,
+      // we stop the loader so they can verify manually.
+      setTimeout(() => {
+        setVerifyLoading(false);
+        verifyBtnText.textContent = 'Authenticate Recovery Session';
+      }, 3000);
       return;
     }
 
@@ -83,6 +86,18 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionWarning.classList.remove('hidden');
     verifyOtpForm.classList.remove('hidden');
   };
+
+  // Register auth state change listener to catch 'PASSWORD_RECOVERY' or 'SIGNED_IN' events automatically
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('Auth state change event triggered:', event, !!session);
+    if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || session) {
+      verifyOtpForm.classList.add('hidden');
+      updateForm.classList.remove('hidden');
+      sessionWarning.classList.add('hidden');
+      setVerifyLoading(false);
+      hideAlerts();
+    }
+  });
 
   initSessionCheck();
 
