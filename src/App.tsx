@@ -347,6 +347,33 @@ export default function App() {
     }
   }, []);
 
+  // Synchronize cart with latest database products to ensure uploaded images and prices are up to date
+  useEffect(() => {
+    if (dbProducts.length > 0) {
+      setCart(currentCart => {
+        let changed = false;
+        const updatedCart = currentCart.map(item => {
+          const latestProduct = dbProducts.find(p => p.id === item.product.id);
+          if (latestProduct && (
+            latestProduct.image !== item.product.image ||
+            latestProduct.price !== item.product.price ||
+            latestProduct.originalPrice !== item.product.originalPrice ||
+            latestProduct.name !== item.product.name
+          )) {
+            changed = true;
+            return { ...item, product: latestProduct };
+          }
+          return item;
+        });
+        if (changed) {
+          localStorage.setItem('sanwariya_cart', JSON.stringify(updatedCart));
+          return updatedCart;
+        }
+        return currentCart;
+      });
+    }
+  }, [dbProducts]);
+
   // Save cart changes
   const saveCart = (newCart: CartItem[]) => {
     setCart(newCart);

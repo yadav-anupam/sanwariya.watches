@@ -87,7 +87,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   // Fetch active coupons from Supabase when drawer opens
   useEffect(() => {
-    if (isOpen && user) {
+    if (isOpen) {
       const fetchCoupons = async () => {
         setIsLoadingCoupons(true);
         try {
@@ -107,25 +107,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             });
             setActiveCoupons(valid);
           } else {
-            // High-quality defaults
-            setActiveCoupons([
-              { id: '1', code: 'SAVE10', discount_type: 'percentage', discount_value: 10, description: '10% OFF on all luxury timepieces' },
-              { id: '2', code: 'WELCOME15', discount_type: 'percentage', discount_value: 15, description: '15% OFF for new registered customers' }
-            ]);
+            setActiveCoupons([]);
           }
         } catch (err) {
           console.error('Error fetching active coupons:', err);
-          setActiveCoupons([
-            { id: '1', code: 'SAVE10', discount_type: 'percentage', discount_value: 10, description: '10% OFF on all luxury timepieces' },
-            { id: '2', code: 'WELCOME15', discount_type: 'percentage', discount_value: 15, description: '15% OFF for new registered customers' }
-          ]);
+          setActiveCoupons([]);
         } finally {
           setIsLoadingCoupons(false);
         }
       };
       fetchCoupons();
     }
-  }, [isOpen, user]);
+  }, [isOpen]);
 
   // Validation states
   const [errors, setErrors] = useState<{ name?: string; phone?: string; address?: string }>({});

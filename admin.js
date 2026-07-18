@@ -2605,33 +2605,9 @@ document.getElementById('btn-confirm-approve').addEventListener('click', () => {
 // THEME SWITCHING (DARK/LIGHT) UTILITIES
 // ==========================================
 function setupThemeToggler() {
-  const toggleBtn = document.getElementById('theme-toggle');
-  
-  // Set default Dark
-  if (localStorage.getItem('admin_theme') === 'light') {
-    document.documentElement.classList.add('light');
-    document.documentElement.classList.remove('dark');
-  } else {
-    document.documentElement.classList.add('dark');
-    document.documentElement.classList.remove('light');
-  }
-
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      const isLight = document.documentElement.classList.contains('light');
-      if (isLight) {
-        document.documentElement.classList.remove('light');
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('admin_theme', 'dark');
-        showToast('Luxury Dark theme activated.', 'warning');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-        localStorage.setItem('admin_theme', 'light');
-        showToast('Aesthetic Light theme activated.', 'warning');
-      }
-    });
-  }
+  // Enforce premium luxury dark theme globally
+  document.documentElement.classList.add('dark');
+  document.documentElement.classList.remove('light');
 }
 
 

@@ -63,7 +63,7 @@ export const WatchModal: React.FC<WatchModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-4xl bg-neutral-950 border border-neutral-900 rounded-3xl overflow-hidden shadow-2xl z-10 my-8"
+          className="relative w-full max-w-4xl bg-neutral-950 border border-neutral-900 rounded-3xl overflow-hidden shadow-2xl z-10 my-8 flex flex-col max-h-[90vh]"
         >
           {/* Header with prominent Close (Cross) Button above the image */}
           <div className="w-full flex justify-between items-center px-6 py-4 border-b border-neutral-900 bg-neutral-950 sticky top-0 z-30">
@@ -83,7 +83,7 @@ export const WatchModal: React.FC<WatchModalProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 overflow-y-auto flex-1">
             {/* Image Section */}
             <div className="relative h-72 md:h-full min-h-[350px] md:min-h-[450px] bg-neutral-950 flex items-center justify-center p-6 md:p-8 overflow-hidden border-b md:border-b-0 md:border-r border-neutral-900">
               <img
@@ -108,7 +108,7 @@ export const WatchModal: React.FC<WatchModalProps> = ({
             </div>
 
             {/* Information Section */}
-            <div className="p-6 sm:p-8 flex flex-col justify-between max-h-[85vh] overflow-y-auto">
+            <div className="p-6 sm:p-8 flex flex-col justify-between">
               <div>
                 {/* Brand & Stock */}
                 <div className="flex items-center justify-between mb-2">
@@ -173,21 +173,7 @@ export const WatchModal: React.FC<WatchModalProps> = ({
                   </div>
                 </div>
 
-                {/* Trust Icons */}
-                <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-sans tracking-wide font-medium text-neutral-400 mb-6">
-                  <div className="p-2.5 rounded-xl bg-neutral-900/40 border border-neutral-900 flex flex-col items-center gap-1.5">
-                    <ShieldCheck size="16" className="text-gold-500" />
-                    <span>100% Authentic</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-neutral-900/40 border border-neutral-900 flex flex-col items-center gap-1.5">
-                    <Truck size="16" className="text-gold-500" />
-                    <span>Fastest Delivery</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-neutral-900/40 border border-neutral-900 flex flex-col items-center gap-1.5">
-                    <RotateCcw size="16" className="text-gold-500" />
-                    <span>Secure Support</span>
-                  </div>
-                </div>
+
               </div>
 
               {/* Actions */}
@@ -219,9 +205,6 @@ export const WatchModal: React.FC<WatchModalProps> = ({
                         <span className="text-[10px]">
                           Subtotal: ₹{(product.price * quantity).toLocaleString('en-IN')}
                         </span>
-                        <span>
-                          Total: <strong className="text-gold-400">₹{((product.price * quantity) + ((product.price * quantity * (product.gstPercentage || 0)) / 100) + ((product.shippingCharges || 0) * quantity)).toLocaleString('en-IN')}</strong>
-                        </span>
                       </span>
                     </div>
 
@@ -250,15 +233,34 @@ export const WatchModal: React.FC<WatchModalProps> = ({
                         <span>Instant Buy</span>
                       </button>
                     </div>
+
+                    {/* Back to Store Cross Button */}
+                    <button
+                      onClick={onClose}
+                      className="w-full mt-2 py-3 px-4 rounded-xl border border-neutral-900 hover:border-neutral-800 bg-neutral-950 hover:bg-neutral-900 text-neutral-400 hover:text-neutral-200 font-sans font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all duration-200"
+                    >
+                      <X size="14" />
+                      <span>Back to Store</span>
+                    </button>
                   </>
                 ) : (
-                  <button
-                    onClick={handleWhatsAppInstantBuy}
-                    className="py-4 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-gold-400 font-sans font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                  >
-                    <MessageSquare size="14" />
-                    <span>Inquire About Restock</span>
-                  </button>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={handleWhatsAppInstantBuy}
+                      className="py-4 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-gold-400 font-sans font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <MessageSquare size="14" />
+                      <span>Inquire About Restock</span>
+                    </button>
+
+                    <button
+                      onClick={onClose}
+                      className="py-3 px-4 rounded-xl border border-neutral-900 hover:border-neutral-800 bg-neutral-950 hover:bg-neutral-900 text-neutral-400 hover:text-neutral-200 font-sans font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer transition-all duration-200"
+                    >
+                      <X size="14" />
+                      <span>Back to Store</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
